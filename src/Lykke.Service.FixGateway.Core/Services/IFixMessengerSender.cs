@@ -21,12 +21,12 @@ namespace Lykke.Service.FixGateway.Core.Services
                 var result = Session.SendToTarget(message, sessionID);
                 if (!result)
                 {
-                    _log.WriteWarningAsync(nameof(Send), $"SessionID: {sessionID}", "Unable to send a message. The reason unknown").GetAwaiter().GetResult();
+                    _log.WriteWarning(nameof(Send), $"SessionID: {sessionID}", "Unable to send a message. The reason unknown");
                 }
             }
             catch (Exception ex)
             {
-                _log.WriteWarningAsync(nameof(Send), $"SessionID: {sessionID}", "Unable to send a message", ex).GetAwaiter().GetResult();
+                _log.WriteWarning(nameof(Send), $"SessionID: {sessionID}", "Unable to send a message", ex);
             }
 
         }

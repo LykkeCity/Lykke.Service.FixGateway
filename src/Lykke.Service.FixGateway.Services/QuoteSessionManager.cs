@@ -72,7 +72,6 @@ namespace Lykke.Service.FixGateway.Services
 
         public void ToAdmin(Message message, SessionID sessionID)
         {
-            _log.WriteInfoAsync("ToAdmin", "", "");
         }
 
         public void FromAdmin(Message message, SessionID sessionID)
@@ -81,17 +80,14 @@ namespace Lykke.Service.FixGateway.Services
             {
                 EnsureHasPassword(logon);
             }
-            _log.WriteInfoAsync("FromAdmin", "", "");
         }
 
         public void ToApp(Message message, SessionID sessionId)
         {
-            _log.WriteInfoAsync("ToApp", "", "");
         }
 
         public void FromApp(Message message, SessionID sessionID)
         {
-            _log.WriteInfoAsync("FromApp", "", "");
             dynamic msg = message;
             HandleRequest(msg, sessionID);
 
@@ -99,7 +95,6 @@ namespace Lykke.Service.FixGateway.Services
 
         public void OnCreate(SessionID sessionID)
         {
-            _log.WriteInfoAsync("OnCreate", "", "");
         }
 
         public virtual void OnLogout(SessionID sessionID)
@@ -113,17 +108,18 @@ namespace Lykke.Service.FixGateway.Services
                 }
                 catch (Exception e)
                 {
-                    _log.WriteWarningAsync("User logout", $"SessionID {sessionID}", "Unexpected exception", e);
+                    _log.WriteWarning("User logout", $"SessionID {sessionID}", "Unexpected exception", e);
                 }
             }
-            _log.WriteInfoAsync("Session closed", $"SenderCompID: {sessionID.SenderCompID}", "");
+
+            _log.WriteInfo("Session closed", $"SenderCompID: {sessionID.SenderCompID}", "");
 
         }
 
         public virtual void OnLogon(SessionID sessionID)
         {
             Init(sessionID);
-            _log.WriteInfoAsync("User logged in", $"SenderCompID: {sessionID.SenderCompID}", "").GetAwaiter().GetResult();
+            _log.WriteInfo("User logged in", $"SenderCompID: {sessionID.SenderCompID}", "");
         }
 
         private void HandleRequest(SecurityListRequest request, SessionID sessionID)
@@ -134,7 +130,7 @@ namespace Lykke.Service.FixGateway.Services
             }
             else
             {
-                _log.WriteWarningAsync("Handle SecurityListRequest", $"SessionID:{sessionID}", "Inconsistent state of the session. Inform developers about this.").GetAwaiter().GetResult();
+                _log.WriteWarning("Handle SecurityListRequest", $"SessionID:{sessionID}", "Inconsistent state of the session. Inform developers about this.");
             }
         }
 
@@ -146,7 +142,7 @@ namespace Lykke.Service.FixGateway.Services
             }
             else
             {
-                _log.WriteWarningAsync("Handle MarketDataRequest", $"SessionID:{sessionID}", "Inconsistent state of the session. Inform developers about this.").GetAwaiter().GetResult();
+                _log.WriteWarning("Handle MarketDataRequest", $"SessionID:{sessionID}", "Inconsistent state of the session. Inform developers about this.");
             }
         }
 
@@ -171,7 +167,7 @@ namespace Lykke.Service.FixGateway.Services
             }
             catch (Exception ex)
             {
-                _log.WriteWarningAsync("New session initialization", $"SessionID: {sessionID}", "Unable initialize a new session", ex);
+                _log.WriteWarning("New session initialization", $"SessionID: {sessionID}", "Unable initialize a new session", ex);
                 throw new RejectLogon("Internal error");
             }
 

@@ -98,7 +98,7 @@ namespace Lykke.Service.FixGateway.Services
         {
             _orderBookSubscription.Dispose();
             _subscriptions.Clear();
-            _log.WriteInfoAsync(nameof(AbortAllSubscriptions), "", "Cancel all subscriptions after logout");
+            _log.WriteInfo(nameof(AbortAllSubscriptions), "", "Cancel all subscriptions after logout");
         }
 
         private async Task HandleRequestAsync(MarketDataRequest request)

@@ -56,7 +56,7 @@ namespace Lykke.Service.FixGateway.Tests
 
         public void ToAdmin(Message message, SessionID sessionID)
         {
-            _log.WriteInfoAsync("FixClient", "ToAdmin", "");
+            _log.WriteInfo("FixClient", "ToAdmin", "");
             if (message is Logon logon)
             {
                 logon.Password = new Password(Const.Password);
@@ -65,34 +65,34 @@ namespace Lykke.Service.FixGateway.Tests
 
         public void FromAdmin(Message message, SessionID sessionID)
         {
-            _log.WriteInfoAsync("FixClient", "FromAdmin", "");
+            _log.WriteInfo("FixClient", "FromAdmin", "");
         }
 
         public void ToApp(Message message, SessionID sessionId)
         {
-            _log.WriteInfoAsync("FixClient", "ToApp", "");
+            _log.WriteInfo("FixClient", "ToApp", "");
         }
 
         public void FromApp(Message message, SessionID sessionID)
         {
-            _log.WriteInfoAsync("FixClient", "FromApp", "");
+            _log.WriteInfo("FixClient", "FromApp", "");
             _response = message;
         }
 
         public void OnCreate(SessionID sessionID)
         {
-            _log.WriteInfoAsync("FixClient", "OnCreate", "");
+            _log.WriteInfo("FixClient", "OnCreate", "");
             _sessionId = sessionID;
         }
 
         public void OnLogout(SessionID sessionID)
         {
-            _log.WriteInfoAsync("FixClient", "OnLogout", "");
+            _log.WriteInfo("FixClient", "OnLogout", "");
         }
 
         public void OnLogon(SessionID sessionID)
         {
-            _log.WriteInfoAsync("FixClient", "OnLogon", "");
+            _log.WriteInfo("FixClient", "OnLogon", "");
         }
 
         public void Send(Message message)
@@ -132,7 +132,7 @@ namespace Lykke.Service.FixGateway.Tests
                 {
                     return;
                 }
-                Thread.Sleep(500);
+                Thread.Sleep(50000);
             }
         }
 

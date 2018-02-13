@@ -74,7 +74,7 @@ namespace Lykke.Service.FixGateway
             }
             catch (Exception ex)
             {
-                Log?.WriteFatalErrorAsync(nameof(Startup), nameof(ConfigureServices), "", ex).GetAwaiter().GetResult();
+                Log?.WriteFatalError(nameof(Startup), nameof(ConfigureServices), ex);
                 throw;
             }
         }
@@ -108,7 +108,7 @@ namespace Lykke.Service.FixGateway
             }
             catch (Exception ex)
             {
-                Log?.WriteFatalErrorAsync(nameof(Startup), nameof(Configure), "", ex).GetAwaiter().GetResult();
+                Log?.WriteFatalError(nameof(Startup), nameof(Configure), ex);
                 throw;
             }
         }
@@ -184,7 +184,7 @@ namespace Lykke.Service.FixGateway
 
             if (string.IsNullOrEmpty(dbLogConnectionString))
             {
-                consoleLogger.WriteWarningAsync(nameof(Startup), nameof(CreateLogWithSlack), "Table logger is not initialized").GetAwaiter().GetResult();
+                consoleLogger.WriteWarning(nameof(Startup), nameof(CreateLogWithSlack), "Table logger is not initialized");
                 return aggregateLogger;
             }
 

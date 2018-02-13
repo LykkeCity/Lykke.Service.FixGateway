@@ -50,7 +50,7 @@ namespace Lykke.Service.FixGateway.Services
                 }
                 catch (Exception ex)
                 {
-                    _log.WriteErrorAsync(nameof(Subscribe), "", ex);
+                    _log.WriteError(nameof(Subscribe), "", ex);
                 }
             });
         }

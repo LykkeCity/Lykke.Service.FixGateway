@@ -1,4 +1,4 @@
-namespace Lykke.Service.FixGateway.Core.Settings.SlackNotifications
+﻿namespace Lykke.Service.FixGateway.Core.Settings.SlackNotifications
 {
     public class AzureQueuePublicationSettings
     {

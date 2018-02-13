@@ -20,7 +20,7 @@
     <PackageReference Include="Lykke.Common" Version="4.4.2" />
     <PackageReference Include="Lykke.Fix" Version="1.0.9" />
     <PackageReference Include="Lykke.Service.Assets.Client" Version="3.3.1" />
-    <PackageReference Include="Lykke.SettingsReader" Version="2.0.2" />
+    <PackageReference Include="Lykke.SettingsReader" Version="2.1.0" />
     <PackageReference Include="SonarAnalyzer.CSharp" Version="6.8.1.4648" />
     <PackageReference Include="StackExchange.Redis.StrongName" Version="1.2.6" />
     <PackageReference Include="System.Reactive" Version="3.1.1" />
