@@ -140,7 +140,7 @@ namespace Lykke.Service.FixGateway.Services
 
             return new MarketOrderFeeModel
             {
-                Size = (double)fee.Amount,
+                Size = (double)fee.DefaultFeeSize,
                 SourceClientId = _credentials.ClientId.ToString("D"),
                 TargetClientId = _feeSettings.TargetClientId.Hft,
                 Type = (int)MarketOrderFeeType.CLIENT_FEE

@@ -66,7 +66,7 @@ namespace Lykke.Service.FixGateway.Tests
         {
             var ret = new[] { new OperationModel
             {
-                Context = JsonConvert.SerializeObject(new NewOrderContext
+                ContextJson = JsonConvert.SerializeObject(new NewOrderContext
                                                 {
                                                     ClientOrderId = _clientOrderId
                                                 }
@@ -88,7 +88,7 @@ namespace Lykke.Service.FixGateway.Tests
         {
             var ret = new OperationModel
             {
-                Context = JsonConvert.SerializeObject(new NewOrderContext
+                ContextJson = JsonConvert.SerializeObject(new NewOrderContext
                 {
                     ClientOrderId = _clientOrderId
                 }
@@ -107,7 +107,7 @@ namespace Lykke.Service.FixGateway.Tests
         {
             var ret = new OperationModel
             {
-                Context = JsonConvert.SerializeObject(new NewOrderContext
+                ContextJson = JsonConvert.SerializeObject(new NewOrderContext
                 {
                     ClientOrderId = _clientOrderId
                 }

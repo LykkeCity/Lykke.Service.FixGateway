@@ -71,7 +71,7 @@ namespace Lykke.Service.FixGateway.Services
         public async Task<string> GetClientOrderIdByOrderIdAsync(Guid orderId)
         {
             var context = await _operationsClient.Get(orderId);
-            var coid = JsonConvert.DeserializeObject<NewOrderContext>(context.Context).ClientOrderId;
+            var coid = JsonConvert.DeserializeObject<NewOrderContext>(context.ContextJson).ClientOrderId;
             return coid;
         }
 
@@ -83,7 +83,7 @@ namespace Lykke.Service.FixGateway.Services
             transaction.KeyDeleteAsync(_key); // Do not await here
             foreach (var operation in operations)
             {
-                var coid = JsonConvert.DeserializeObject<NewOrderContext>(operation.Context).ClientOrderId;
+                var coid = JsonConvert.DeserializeObject<NewOrderContext>(operation.ContextJson).ClientOrderId;
                 transaction.SetAddAsync(_key, coid); // and here also
             }
             transaction.Execute();
