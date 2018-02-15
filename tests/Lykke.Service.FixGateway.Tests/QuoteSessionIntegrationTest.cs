@@ -11,7 +11,6 @@ namespace Lykke.Service.FixGateway.Tests
     {
         private FixClient _fixClient;
         private readonly string _uri =  Environment.GetEnvironmentVariable("ServiceUrl");
-        //private const string Uri = "localhost";
 
         [SetUp]
         public void SetUp()

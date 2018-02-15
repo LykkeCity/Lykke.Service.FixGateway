@@ -98,7 +98,7 @@ namespace Lykke.Service.FixGateway
                 app.UseSwaggerUI(x =>
                 {
                     x.RoutePrefix = "swagger/ui";
-                    x.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
+                    x.SwaggerEndpoint(@"/swagger/v1/swagger.json", "v1");
                 });
                 app.UseStaticFiles();
 

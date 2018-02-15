@@ -180,14 +180,12 @@ namespace Lykke.Service.FixGateway.Services
             {
                 reject = GetFailedResponse(request, MDReqRejReason.DUPLICATE_MDREQID);
             }
-
-            if (request.SubscriptionRequestType.Obj != SubscriptionRequestType.SNAPSHOT_PLUS_UPDATES
-                && request.SubscriptionRequestType.Obj != SubscriptionRequestType.DISABLE_PREVIOUS_SNAPSHOT_PLUS_UPDATE_REQUEST)
+            else if (request.SubscriptionRequestType.Obj != SubscriptionRequestType.SNAPSHOT_PLUS_UPDATES
+               && request.SubscriptionRequestType.Obj != SubscriptionRequestType.DISABLE_PREVIOUS_SNAPSHOT_PLUS_UPDATE_REQUEST)
             {
                 reject = GetFailedResponse(request, MDReqRejReason.UNSUPPORTED_SUBSCRIPTIONREQUESTTYPE);
             }
-
-            if (request.MarketDepth.Obj < 0)
+            else if (request.MarketDepth.Obj < 0)
             {
                 reject = GetFailedResponse(request, MDReqRejReason.UNSUPPORTED_MARKETDEPTH);
             }

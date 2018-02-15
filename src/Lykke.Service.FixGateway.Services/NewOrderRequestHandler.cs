@@ -119,7 +119,7 @@ namespace Lykke.Service.FixGateway.Services
             {
                 var rejectReason = _mapper.Map<OrdRejReason>(status);
                 var reject = CreateRejectResponse(newOrderId, request, rejectReason, status.ToString());
-                SendReject(reject);
+                Send(reject);
             }
         }
 
@@ -136,11 +136,11 @@ namespace Lykke.Service.FixGateway.Services
         private async Task<MarketOrderFeeModel> GetMarketOrderFeeAsync(string assetPairId, OrderAction orderAction)
         {
             var assetPair = await _assetsServiceWithCache.TryGetAssetPairAsync(assetPairId);
-            var fee = await _feeCalculatorClient.GetMarketOrderFees(_credentials.ClientId.ToString("D"), assetPairId, assetPair?.BaseAssetId, _mapper.Map<FeeCalculator.AutorestClient.Models.OrderAction>(orderAction));
+            var fee = await _feeCalculatorClient.GetMarketOrderAssetFee(_credentials.ClientId.ToString("D"), assetPairId, assetPair?.BaseAssetId, _mapper.Map<FeeCalculator.AutorestClient.Models.OrderAction>(orderAction));
 
             return new MarketOrderFeeModel
             {
-                Size = (double)fee.DefaultFeeSize,
+                Size = (double)fee.Amount,
                 SourceClientId = _credentials.ClientId.ToString("D"),
                 TargetClientId = _feeSettings.TargetClientId.Hft,
                 Type = (int)MarketOrderFeeType.CLIENT_FEE
@@ -155,9 +155,9 @@ namespace Lykke.Service.FixGateway.Services
         private async Task<bool> ValidateRequestAsync(Guid newOrderId, NewOrderSingle request)
         {
             var clOrdId = request.ClOrdID.Obj;
-            var oe = await _clientOrderIdProvider.CheckExistsAsync(clOrdId);
+            var orderExists = await _clientOrderIdProvider.CheckExistsAsync(clOrdId);
             Message reject = null;
-            if (oe)
+            if (orderExists)
             {
                 reject = CreateRejectResponse(newOrderId, request, OrdRejReason.DUPLICATE_ORDER);
             }
@@ -168,19 +168,16 @@ namespace Lykke.Service.FixGateway.Services
             {
                 reject = CreateRejectResponse(newOrderId, request, OrdRejReason.UNKNOWN_SYMBOL);
             }
-
-
-            if (!Guid.TryParse(request.Account.Obj, out var accId) || accId != _credentials.ClientId)
+            else if (!Guid.TryParse(request.Account.Obj, out var accId) || accId != _credentials.ClientId)
             {
                 reject = CreateRejectResponse(newOrderId, request, OrdRejReason.UNKNOWN_ACCOUNT);
             }
-
-            if (request.OrderQty.Obj <= 0
-                || !new[] { Side.BUY, Side.SELL }.Contains(request.Side.Obj)
-                || !new[] { OrdType.MARKET, OrdType.LIMIT }.Contains(request.OrdType.Obj)
-                || request.OrdType.Obj == OrdType.LIMIT && (!request.IsSetPrice() || request.Price.Obj <= 0m)
-                || !new[] { TimeInForce.GOOD_TILL_CANCEL, TimeInForce.FILL_OR_KILL }.Contains(request.TimeInForce.Obj)
-                || request.OrdType.Obj == OrdType.LIMIT && request.TimeInForce.Obj != TimeInForce.GOOD_TILL_CANCEL)
+            else if (request.OrderQty.Obj <= 0
+              || !new[] { Side.BUY, Side.SELL }.Contains(request.Side.Obj)
+              || !new[] { OrdType.MARKET, OrdType.LIMIT }.Contains(request.OrdType.Obj)
+              || request.OrdType.Obj == OrdType.LIMIT && (!request.IsSetPrice() || request.Price.Obj <= 0m)
+              || !new[] { TimeInForce.GOOD_TILL_CANCEL, TimeInForce.FILL_OR_KILL }.Contains(request.TimeInForce.Obj)
+              || request.OrdType.Obj == OrdType.LIMIT && request.TimeInForce.Obj != TimeInForce.GOOD_TILL_CANCEL)
             {
                 reject = CreateRejectResponse(newOrderId, request, OrdRejReason.UNSUPPORTED_ORDER_CHARACTERISTIC);
             }
@@ -189,17 +186,13 @@ namespace Lykke.Service.FixGateway.Services
 
             if (reject != null)
             {
-                SendReject(reject);
+                Send(reject);
                 return false;
             }
 
             return true;
         }
 
-        private void SendReject(Message message)
-        {
-            Send(message);
-        }
 
         private void Send(Message message)
         {

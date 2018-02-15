@@ -6,7 +6,7 @@ using Microsoft.Extensions.PlatformAbstractions;
 
 namespace Lykke.Service.FixGateway
 {
-    internal sealed class Program
+    internal static class Program
     {
         public static string EnvInfo => Environment.GetEnvironmentVariable("ENV_INFO");
 

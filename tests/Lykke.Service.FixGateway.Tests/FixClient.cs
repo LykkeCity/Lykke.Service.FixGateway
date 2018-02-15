@@ -126,13 +126,13 @@ namespace Lykke.Service.FixGateway.Tests
         public void Start()
         {
             _socketInitiator.Start();
-            for (var i = 0; i < 10; i++)
+            for (var i = 0; i < 1000; i++)
             {
                 if (_socketInitiator.IsLoggedOn)
                 {
                     return;
                 }
-                Thread.Sleep(50000);
+                Thread.Sleep(5);
             }
         }
 
