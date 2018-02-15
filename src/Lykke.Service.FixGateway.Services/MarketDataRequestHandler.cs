@@ -247,9 +247,9 @@ namespace Lykke.Service.FixGateway.Services
         }
 
 
-        private void Send(Message reject)
+        private void Send(Message message)
         {
-            _fixMessagesSender.Send(reject, _sessionState.SessionID);
+            _fixMessagesSender.Send(message, _sessionState.SessionID);
         }
 
         private sealed class Subscription

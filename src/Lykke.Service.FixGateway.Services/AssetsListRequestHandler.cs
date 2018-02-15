@@ -48,22 +48,20 @@ namespace Lykke.Service.FixGateway.Services
                 {
                     return;
                 }
-
-
                 using (var cts = new CancellationTokenSource(_defaultRequestTimeout))
                 using (var cts2 = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, _tokenSource.Token))
                 {
                     var assetPairs = await _assetsServiceWithCache.GetAllAssetPairsAsync(cts2.Token);
                     response = GetSuccessfulResponse(request, assetPairs);
-                    Send(response);
                 }
             }
             catch (Exception ex)
             {
+
                 await _log.WriteWarningAsync(nameof(HandleRequestAsync), "Unable to receive asset information", "", ex);
                 response = GetFailedResponse(request, SecurityRequestResult.INSTRUMENT_DATA_TEMPORARILY_UNAVAILABLE);
-                Send(response);
             }
+            Send(response);
         }
 
         private static SecurityList GetFailedResponse(SecurityListRequest request, int reason)

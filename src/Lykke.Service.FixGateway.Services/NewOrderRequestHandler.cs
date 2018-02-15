@@ -94,7 +94,7 @@ namespace Lykke.Service.FixGateway.Services
         private async Task HandleMarketOrderAsync(Guid newOrderId, NewOrderSingle request)
         {
             var orderAction = _mapper.Map<OrderAction>(request.Side);
-            var mmm = new MarketOrderModel
+            var orderModel = new MarketOrderModel
             {
                 Id = newOrderId.ToString("D"),
                 ClientId = request.Account.Obj,
@@ -106,7 +106,7 @@ namespace Lykke.Service.FixGateway.Services
                 ReservedLimitVolume = null
             };
 
-            var meResponse = await _matchingEngineClient.HandleMarketOrderAsync(mmm);
+            var meResponse = await _matchingEngineClient.HandleMarketOrderAsync(orderModel);
             await CheckResponseAndThrowIfNullAsync(meResponse);
             var status = (MessageStatus)meResponse.Status;
             //Send only if received OK. Other messages we will receive via RabbitMq
