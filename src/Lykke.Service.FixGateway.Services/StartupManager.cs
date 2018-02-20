@@ -20,12 +20,17 @@ namespace Lykke.Service.FixGateway.Services
         private readonly IEnumerable<ISessionManager> _sessionManagers;
         private readonly MessagesDispatcher<OrderBook> _orderBooksDispatcher;
         private readonly MessagesDispatcher<MarketOrderWithTrades> _marketOrdersDispatcher;
+        private readonly MessagesDispatcher<LimitOrdersReport> _limitOrderDispatcher;
 
-        public StartupManager(IEnumerable<ISessionManager> sessionManagers, MessagesDispatcher<OrderBook> orderBooksDispatcher, MessagesDispatcher<MarketOrderWithTrades> marketOrdersDispatcher)
+        public StartupManager(IEnumerable<ISessionManager> sessionManagers,
+            MessagesDispatcher<OrderBook> orderBooksDispatcher,
+            MessagesDispatcher<MarketOrderWithTrades> marketOrdersDispatcher,
+                MessagesDispatcher<LimitOrdersReport> limitOrderDispatcher)
         {
             _sessionManagers = sessionManagers;
             _orderBooksDispatcher = orderBooksDispatcher;
             _marketOrdersDispatcher = marketOrdersDispatcher;
+            _limitOrderDispatcher = limitOrderDispatcher;
         }
 
         public async Task StartAsync()
@@ -36,6 +41,7 @@ namespace Lykke.Service.FixGateway.Services
             }
             _orderBooksDispatcher.Start();
             _marketOrdersDispatcher.Start();
+            _limitOrderDispatcher.Start();
 
             await Task.CompletedTask;
         }

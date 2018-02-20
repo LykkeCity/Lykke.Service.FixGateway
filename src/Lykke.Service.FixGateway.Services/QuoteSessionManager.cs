@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using Autofac;
-using Common;
 using Common.Log;
 using JetBrains.Annotations;
 using Lykke.Service.Assets.Client;

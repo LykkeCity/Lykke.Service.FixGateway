@@ -49,6 +49,22 @@ namespace Lykke.Service.FixGateway.Modules
                 .SetMessageDeserializer(new JsonMessageDeserializer<MarketOrderWithTrades>())
                 .SetMessageReadStrategy(new MessageReadWithTemporaryQueueStrategy())
                 .SetLogger(c.Resolve<ILog>()));
+
+
+            var los = _settings.CurrentValue.RabbitMq.IncomingLimitOrders;
+            var limitOrderSettings = new RabbitMqSubscriptionSettings
+            {
+                ConnectionString = los.ConnectionString,
+                ExchangeName = los.Exchange,
+                QueueName = los.Queue,
+                IsDurable = true
+            };
+
+            var loes = new DefaultErrorHandlingStrategy(_log, orderSettings);
+            builder.Register(c => new RabbitMqSubscriber<LimitOrdersReport>(limitOrderSettings, loes)
+                .SetMessageDeserializer(new JsonMessageDeserializer<LimitOrdersReport>())
+                .CreateDefaultBinding()
+                .SetLogger(c.Resolve<ILog>()));
         }
     }
 }

@@ -32,6 +32,7 @@ namespace Lykke.Service.FixGateway.Services
         private readonly FeeSettings _feeSettings;
         private readonly SessionState _sessionState;
         private readonly IFixMessagesSender _fixMessagesSender;
+        private readonly OrderCharacteristicsValidator _orderCharacteristicsValidator;
         private readonly CancellationTokenSource _tokenSource;
 
 
@@ -58,16 +59,21 @@ namespace Lykke.Service.FixGateway.Services
             _feeSettings = feeSettings;
             _sessionState = sessionState;
             _fixMessagesSender = fixMessagesSender;
+            _orderCharacteristicsValidator = new OrderCharacteristicsValidator(clientOrderIdProvider, assetsService, credentials);
             _tokenSource = new CancellationTokenSource();
+
         }
+
+
 
         public void Handle(NewOrderSingle request)
         {
-            Task.Run(() => HandleRequestAsync(request), _tokenSource.Token);
+            Task.Factory.StartNew(HandleRequestAsync, request, _tokenSource.Token).Unwrap().GetAwaiter().GetResult();
         }
 
-        private async Task HandleRequestAsync(NewOrderSingle request)
+        private async Task HandleRequestAsync(object input)
         {
+            var request = (NewOrderSingle)input;
             var newOrderId = GenerateOrderId();
             try
             {
@@ -78,9 +84,13 @@ namespace Lykke.Service.FixGateway.Services
 
                 await _clientOrderIdProvider.RegisterNewOrderAsync(newOrderId, request.ClOrdID.Obj);
 
-                if (request.OrdType.Obj == OrdType.MARKET)
+                if (IsMarketOrder(request))
                 {
                     await HandleMarketOrderAsync(newOrderId, request);
+                }
+                else
+                {
+                    await HandleLimitOrderAsync(newOrderId, request);
                 }
             }
             catch (Exception ex)
@@ -91,16 +101,61 @@ namespace Lykke.Service.FixGateway.Services
             }
         }
 
+        private static bool IsMarketOrder(NewOrderSingle request)
+        {
+            return request.OrdType.Obj == OrdType.MARKET;
+        }
+
+        private Guid GenerateOrderId()
+        {
+            return Guid.NewGuid();
+        }
+
+        private async Task HandleLimitOrderAsync(Guid newOrderId, NewOrderSingle request)
+        {
+            var orderAction = _mapper.Map<OrderAction>(request.Side);
+            var volumeSign = orderAction == OrderAction.Buy ? 1 : -1;
+            var orderModel = new LimitOrderModel
+            {
+                Id = newOrderId.ToString("D"),
+                ClientId = request.Account.Obj,
+                AssetPairId = request.Symbol.Obj,
+                Volume = volumeSign * (double)request.OrderQty.Obj,
+                OrderAction = _mapper.Map<MatchingEngine.Connector.Abstractions.Models.OrderAction>(orderAction),
+                Fee = await GetLimitOrderFeeAsync(request.Symbol.Obj, orderAction),
+                Price = (double)request.Price.Obj,
+                CancelPreviousOrders = false
+            };
+
+            var meResponse = await _matchingEngineClient.PlaceLimitOrderAsync(orderModel);
+            await CheckResponseAndThrowIfNullAsync(meResponse);
+            var status = (MessageStatus)meResponse.Status;
+            //Send only if received OK. Other messages we will receive via RabbitMq
+            if (status == MessageStatus.Ok)
+            {
+                var ack = CreteAckResponse(newOrderId, request);
+                Send(ack);
+            }
+            else if (new[] { MessageStatus.Runtime, MessageStatus.Duplicate }.Contains(status)) // All other errors will be delivered via RabbitMq
+            {
+                var rejectReason = _mapper.Map<OrdRejReason>(status);
+                var reject = CreateRejectResponse(newOrderId, request, rejectReason, status.ToString());
+                Send(reject);
+            }
+        }
+
         private async Task HandleMarketOrderAsync(Guid newOrderId, NewOrderSingle request)
         {
             var orderAction = _mapper.Map<OrderAction>(request.Side);
+            var volumeSign = orderAction == OrderAction.Buy ? 1 : -1;
+
             var orderModel = new MarketOrderModel
             {
                 Id = newOrderId.ToString("D"),
                 ClientId = request.Account.Obj,
                 AssetPairId = request.Symbol.Obj,
                 Straight = true,
-                Volume = (double)request.OrderQty.Obj,
+                Volume = volumeSign * (double)request.OrderQty.Obj,
                 OrderAction = _mapper.Map<MatchingEngine.Connector.Abstractions.Models.OrderAction>(orderAction),
                 Fee = await GetMarketOrderFeeAsync(request.Symbol.Obj, orderAction),
                 ReservedLimitVolume = null
@@ -147,49 +202,31 @@ namespace Lykke.Service.FixGateway.Services
             };
         }
 
-        private static Guid GenerateOrderId()
+        private async Task<MatchingEngine.Connector.Abstractions.Models.LimitOrderFeeModel> GetLimitOrderFeeAsync(string assetPairId, OrderAction orderAction)
         {
-            return Guid.NewGuid();
+            var assetPair = await _assetsServiceWithCache.TryGetAssetPairAsync(assetPairId);
+            var fee = await _feeCalculatorClient.GetLimitOrderFees(_credentials.ClientId.ToString("D"), assetPairId, assetPair?.BaseAssetId, _mapper.Map<FeeCalculator.AutorestClient.Models.OrderAction>(orderAction));
+
+            return new MatchingEngine.Connector.Abstractions.Models.LimitOrderFeeModel
+            {
+                MakerSize = (double)fee.MakerFeeSize,
+                TakerSize = (double)fee.TakerFeeSize,
+                SourceClientId = _credentials.ClientId.ToString("D"),
+                TargetClientId = _feeSettings.TargetClientId.Hft,
+                Type = (int)LimitOrderFeeType.CLIENT_FEE
+            };
         }
+
 
         private async Task<bool> ValidateRequestAsync(Guid newOrderId, NewOrderSingle request)
         {
-            var clOrdId = request.ClOrdID.Obj;
-            var orderExists = await _clientOrderIdProvider.CheckExistsAsync(clOrdId);
-            Message reject = null;
-            if (orderExists)
+            var rejectReason = await _orderCharacteristicsValidator.ValidateRequestAsync(request);
+            if (rejectReason != null)
             {
-                reject = CreateRejectResponse(newOrderId, request, OrdRejReason.DUPLICATE_ORDER);
-            }
-
-            var allSymbols = (await _assetsServiceWithCache.GetAllAssetPairsAsync(_tokenSource.Token)).Select(a => a.Id).ToHashSet();
-
-            if (!allSymbols.Contains(request.Symbol.Obj))
-            {
-                reject = CreateRejectResponse(newOrderId, request, OrdRejReason.UNKNOWN_SYMBOL);
-            }
-            else if (!Guid.TryParse(request.Account.Obj, out var accId) || accId != _credentials.ClientId)
-            {
-                reject = CreateRejectResponse(newOrderId, request, OrdRejReason.UNKNOWN_ACCOUNT);
-            }
-            else if (request.OrderQty.Obj <= 0
-              || !new[] { Side.BUY, Side.SELL }.Contains(request.Side.Obj)
-              || !new[] { OrdType.MARKET, OrdType.LIMIT }.Contains(request.OrdType.Obj)
-              || request.OrdType.Obj == OrdType.LIMIT && (!request.IsSetPrice() || request.Price.Obj <= 0m)
-              || !new[] { TimeInForce.GOOD_TILL_CANCEL, TimeInForce.FILL_OR_KILL }.Contains(request.TimeInForce.Obj)
-              || request.OrdType.Obj == OrdType.LIMIT && request.TimeInForce.Obj != TimeInForce.GOOD_TILL_CANCEL)
-            {
-                reject = CreateRejectResponse(newOrderId, request, OrdRejReason.UNSUPPORTED_ORDER_CHARACTERISTIC);
-            }
-
-
-
-            if (reject != null)
-            {
+                var reject = CreateRejectResponse(newOrderId, request, rejectReason);
                 Send(reject);
                 return false;
             }
-
             return true;
         }
 

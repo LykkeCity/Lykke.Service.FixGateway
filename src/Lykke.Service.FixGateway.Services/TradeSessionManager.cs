@@ -111,14 +111,14 @@ namespace Lykke.Service.FixGateway.Services
                 }
             }
 
-            _log.WriteInfo("Session closed", $"SenderCompID: {sessionID.SenderCompID}", "");
+            _log.WriteInfo("Session closed", $"SenderCompID: {sessionID.TargetCompID}", "");
 
         }
 
         public virtual void OnLogon(SessionID sessionID)
         {
             Init(sessionID);
-            _log.WriteInfo("User logged in", $"SenderCompID: {sessionID.SenderCompID}", "");
+            _log.WriteInfo("User logged in", $"SenderCompID: {sessionID.TargetCompID}", "");
         }
 
         private void HandleRequest(NewOrderSingle request, SessionID sessionID)
@@ -139,7 +139,7 @@ namespace Lykke.Service.FixGateway.Services
         {
             if (!string.Equals(_credentials.Password, message.Password.Obj, StringComparison.Ordinal))
             {
-                _log.WriteWarning(nameof(EnsureHasPassword), $"SenderCompID: {sessionID.SenderCompID}", "Incorrect password");
+                _log.WriteWarning(nameof(EnsureHasPassword), $"SenderCompID: {sessionID.TargetCompID}", "Incorrect password");
                 throw new RejectLogon("Incorrect password");
             }
         }
@@ -152,7 +152,8 @@ namespace Lykke.Service.FixGateway.Services
                 var op = innerScope.Resolve<IClientOrderIdProvider>();
                 op.Start();
                 innerScope.Resolve<NewOrderRequestHandler>(TypedParameter.From(new SessionState(sessionID)));
-                innerScope.Resolve<MatchingEngineNotificationListener>(TypedParameter.From(new SessionState(sessionID)));
+                innerScope.Resolve<MarketOrderNotificationsListener>(TypedParameter.From(new SessionState(sessionID)));
+                innerScope.Resolve<LimitOrderNotificationsListener>(TypedParameter.From(new SessionState(sessionID)));
                 _sessionContainers.TryAdd(sessionID, innerScope);
             }
             catch (Exception ex)
