@@ -18,6 +18,7 @@ namespace Lykke.Service.FixGateway.Services
         private readonly Credentials _credentials;
         private readonly RedisKey _key;
         public const string KeyPrefix = "FixGateway:WalletId:{0}";
+        private readonly TimeSpan _keyExpirationPeriod = TimeSpan.FromDays(7);
 
         public ClientOrderIdProvider(IOperationsClient operationsClient, IConnectionMultiplexer connectionMultiplexer, Credentials credentials)
         {
@@ -39,10 +40,9 @@ namespace Lykke.Service.FixGateway.Services
 
             try
             {
-                if (!await GetDatabase().SetAddAsync(_key, clientOrderId))
-                {
-                    throw new InvalidOperationException(@"Duplicate ClOrdId");
-                }
+                var db = GetDatabase();
+                await db.KeyExpireAsync(_key, _keyExpirationPeriod);
+                await db.HashSetAsync(_key, clientOrderId, orderId.ToString());
             }
             catch (Exception)
             {
@@ -58,14 +58,14 @@ namespace Lykke.Service.FixGateway.Services
 
         public Task<bool> CheckExistsAsync(string clientOrderId)
         {
-            return GetDatabase().SetContainsAsync(_key, clientOrderId);
+            return GetDatabase().HashExistsAsync(_key, clientOrderId);
         }
 
         public async Task RemoveCompletedAsync(Guid orderId)
         {
             var coid = await GetClientOrderIdByOrderIdAsync(orderId);
             await _operationsClient.Complete(orderId);
-            await GetDatabase().SetRemoveAsync(_key, coid);
+            await GetDatabase().HashDeleteAsync(_key, coid);
         }
 
         public async Task<string> GetClientOrderIdByOrderIdAsync(Guid orderId)
@@ -78,13 +78,14 @@ namespace Lykke.Service.FixGateway.Services
         public void Start()
         {
             var operations = _operationsClient.Get(_credentials.ClientId, OperationStatus.Created).GetAwaiter().GetResult().ToArray();
-
-            GetDatabase().KeyDeleteAsync(_key).GetAwaiter().GetResult();
-            var batch = GetDatabase().CreateBatch();
+            var db = GetDatabase();
+            db.KeyDeleteAsync(_key).GetAwaiter().GetResult();
+            var batch = db.CreateBatch();
             foreach (var operation in operations)
             {
                 var coid = JsonConvert.DeserializeObject<NewOrderContext>(operation.ContextJson).ClientOrderId;
-                batch.SetAddAsync(_key, coid); // and here also
+                batch.KeyExpireAsync(_key, _keyExpirationPeriod);
+                batch.HashSetAsync(_key, coid, operation.Id.ToString()); // Do not await here
             }
             batch.Execute();
 
