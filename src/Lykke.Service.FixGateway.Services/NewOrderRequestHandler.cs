@@ -116,7 +116,7 @@ namespace Lykke.Service.FixGateway.Services
             var volumeSign = orderAction == OrderAction.Buy ? 1 : -1;
             var orderModel = new LimitOrderModel
             {
-                Id = newOrderId.ToString("D"),
+                Id = newOrderId.ToString(),
                 ClientId = request.Account.Obj,
                 AssetPairId = request.Symbol.Obj,
                 Volume = volumeSign * (double)request.OrderQty.Obj,
@@ -160,7 +160,7 @@ namespace Lykke.Service.FixGateway.Services
 
             var orderModel = new MarketOrderModel
             {
-                Id = newOrderId.ToString("D"),
+                Id = newOrderId.ToString(),
                 ClientId = request.Account.Obj,
                 AssetPairId = request.Symbol.Obj,
                 Straight = true,
@@ -190,12 +190,12 @@ namespace Lykke.Service.FixGateway.Services
         private async Task<MarketOrderFeeModel> GetMarketOrderFeeAsync(string assetPairId, OrderAction orderAction)
         {
             var assetPair = await _assetsServiceWithCache.TryGetAssetPairAsync(assetPairId);
-            var fee = await _feeCalculatorClient.GetMarketOrderAssetFee(_credentials.ClientId.ToString("D"), assetPairId, assetPair?.BaseAssetId, _mapper.Map<FeeCalculator.AutorestClient.Models.OrderAction>(orderAction));
+            var fee = await _feeCalculatorClient.GetMarketOrderAssetFee(_credentials.ClientId.ToString(), assetPairId, assetPair?.BaseAssetId, _mapper.Map<FeeCalculator.AutorestClient.Models.OrderAction>(orderAction));
 
             return new MarketOrderFeeModel
             {
                 Size = (double)fee.Amount,
-                SourceClientId = _credentials.ClientId.ToString("D"),
+                SourceClientId = _credentials.ClientId.ToString(),
                 TargetClientId = _feeSettings.TargetClientId.Hft,
                 Type = (int)MarketOrderFeeType.CLIENT_FEE
             };
@@ -204,13 +204,13 @@ namespace Lykke.Service.FixGateway.Services
         private async Task<LimitOrderFeeModel> GetLimitOrderFeeAsync(string assetPairId, OrderAction orderAction)
         {
             var assetPair = await _assetsServiceWithCache.TryGetAssetPairAsync(assetPairId);
-            var fee = await _feeCalculatorClient.GetLimitOrderFees(_credentials.ClientId.ToString("D"), assetPairId, assetPair?.BaseAssetId, _mapper.Map<FeeCalculator.AutorestClient.Models.OrderAction>(orderAction));
+            var fee = await _feeCalculatorClient.GetLimitOrderFees(_credentials.ClientId.ToString(), assetPairId, assetPair?.BaseAssetId, _mapper.Map<FeeCalculator.AutorestClient.Models.OrderAction>(orderAction));
 
             return new LimitOrderFeeModel
             {
                 MakerSize = (double)fee.MakerFeeSize,
                 TakerSize = (double)fee.TakerFeeSize,
-                SourceClientId = _credentials.ClientId.ToString("D"),
+                SourceClientId = _credentials.ClientId.ToString(),
                 TargetClientId = _feeSettings.TargetClientId.Hft,
                 Type = (int)LimitOrderFeeType.CLIENT_FEE
             };
@@ -239,7 +239,7 @@ namespace Lykke.Service.FixGateway.Services
         {
             var ack = new ExecutionReport
             {
-                OrderID = new OrderID(newOrderId.ToString("D")),
+                OrderID = new OrderID(newOrderId.ToString()),
                 ClOrdID = new ClOrdID(request.ClOrdID.Obj),
                 ExecID = new ExecID(_sessionState.NextOrderReportId.ToString()),
                 OrdStatus = new OrdStatus(OrdStatus.PENDING_NEW),
@@ -266,7 +266,7 @@ namespace Lykke.Service.FixGateway.Services
         {
             var reject = new ExecutionReport
             {
-                OrderID = new OrderID(newOrderId.ToString("D")),
+                OrderID = new OrderID(newOrderId.ToString()),
                 ClOrdID = new ClOrdID(request.ClOrdID.Obj),
                 ExecID = new ExecID(_sessionState.NextOrderReportId.ToString()),
                 OrdStatus = new OrdStatus(OrdStatus.REJECTED),

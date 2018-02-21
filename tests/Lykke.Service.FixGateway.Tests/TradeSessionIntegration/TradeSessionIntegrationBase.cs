@@ -32,7 +32,7 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
             FIXClient = new FixClient(sessionSetting.SenderCompID, sessionSetting.TargetCompID, port: 12357);
             _sessionManager.Start();
             FIXClient.Start();
-            ClientOrderId = Guid.NewGuid().ToString("D");
+            ClientOrderId = Guid.NewGuid().ToString();
             _container.Resolve<IStartupManager>().StartAsync().GetAwaiter().GetResult();
         }
 

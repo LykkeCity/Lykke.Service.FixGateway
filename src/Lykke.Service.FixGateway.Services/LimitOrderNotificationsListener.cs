@@ -41,7 +41,7 @@ namespace Lykke.Service.FixGateway.Services
             _mapper = mapper;
             _fixMessagesSender = fixMessagesSender;
             _log = log.CreateComponentScope(nameof(LimitOrderNotificationsListener));
-            _clientId = credentials.ClientId.ToString("D");
+            _clientId = credentials.ClientId.ToString();
             _ordersSubscription = marketOrderSubscriber.Subscribe(async trades => await HandleOrderNotification(trades));
         }
 
@@ -87,30 +87,34 @@ namespace Lykke.Service.FixGateway.Services
                 }
             }
 
-            if (order.Status == OrderStatus.Matched)
+            switch (order.Status)
             {
-                var trade = trades.OrderByDescending(t => t.Timestamp).First();
-                var partMsg = GetFilledResponse(order, OrdStatus.FILLED, clientOrderId, trade);
-                responses.Add(partMsg);
-            }
-            else if (order.Status == OrderStatus.Cancelled)
-            {
-                var partMsg = GetCancelResponse(order, clientOrderId);
-                responses.Add(partMsg);
-            }
-            else if (order.Status == OrderStatus.Processing)
-            {
-                var trade = trades.OrderByDescending(t => t.Timestamp).First();
-                var partMsg = GetFilledResponse(order, OrdStatus.PARTIALLY_FILLED, clientOrderId, trade);
-                responses.Add(partMsg);
-            }
-            else if (order.Status == OrderStatus.InOrderBook)
-            {
-                // Ignore. We have already sent a response from the API
-            }
-            else
-            {
-                responses.Add(CreateFailedResponse(order, clientOrderId));
+                case OrderStatus.Matched:
+                {
+                    var trade = trades.OrderByDescending(t => t.Timestamp).First();
+                    var partMsg = GetFilledResponse(order, OrdStatus.FILLED, clientOrderId, trade);
+                    responses.Add(partMsg);
+                    break;
+                }
+                case OrderStatus.Cancelled:
+                {
+                    var partMsg = GetCancelResponse(order, clientOrderId);
+                    responses.Add(partMsg);
+                    break;
+                }
+                case OrderStatus.Processing:
+                {
+                    var trade = trades.OrderByDescending(t => t.Timestamp).First();
+                    var partMsg = GetFilledResponse(order, OrdStatus.PARTIALLY_FILLED, clientOrderId, trade);
+                    responses.Add(partMsg);
+                    break;
+                }
+                case OrderStatus.InOrderBook:
+                    // Ignore. We have already sent a response from the API
+                    break;
+                default:
+                    responses.Add(CreateFailedResponse(order, clientOrderId));
+                    break;
             }
 
             foreach (var response in responses)

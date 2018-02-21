@@ -46,7 +46,7 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
 
         public override void SetUp()
         {
-            ClientOrderId = Guid.NewGuid().ToString("D");
+            ClientOrderId = Guid.NewGuid().ToString();
             FIXClient = new FixClient("LYKKE_T", "SENDER_T", _uri, 12357);
             FIXClient.Start();
         }
@@ -127,10 +127,10 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
             while ((DateTime.Now - startTime).Seconds < 60)
             {
                 var sellPrice = basePrice + 50 + priceRnd.Next(50);
-                var sellLimitOrd = TradeSessionIntegrationBase.CreateNewOrder(Guid.NewGuid().ToString("D"), false, false, assetId, 0.01m + (decimal)(volumeRnd.NextDouble() * 0.01), sellPrice);
+                var sellLimitOrd = TradeSessionIntegrationBase.CreateNewOrder(Guid.NewGuid().ToString(), false, false, assetId, 0.01m + (decimal)(volumeRnd.NextDouble() * 0.01), sellPrice);
 
                 var buyPrice = basePrice - 50 - priceRnd.Next(50);
-                var buyLimitOrd = TradeSessionIntegrationBase.CreateNewOrder(Guid.NewGuid().ToString("D"), false, true, assetId, 0.01m + (decimal)(volumeRnd.NextDouble() * 0.01), buyPrice);
+                var buyLimitOrd = TradeSessionIntegrationBase.CreateNewOrder(Guid.NewGuid().ToString(), false, true, assetId, 0.01m + (decimal)(volumeRnd.NextDouble() * 0.01), buyPrice);
 
                 fixClient.Send(sellLimitOrd);
                 fixClient.GetResponse<Message>();
@@ -139,8 +139,8 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
                 fixClient.GetResponse<Message>();
 
 
-                var sellMrkOrder = TradeSessionIntegrationBase.CreateNewOrder(Guid.NewGuid().ToString("D"), true, false, assetId, 1.11m + (decimal)(volumeRnd.NextDouble() * 0.01));
-                var buyMrkOrder = TradeSessionIntegrationBase.CreateNewOrder(Guid.NewGuid().ToString("D"), true, true, assetId, 1.11m + (decimal)(volumeRnd.NextDouble() * 0.01));
+                var sellMrkOrder = TradeSessionIntegrationBase.CreateNewOrder(Guid.NewGuid().ToString(), true, false, assetId, 1.11m + (decimal)(volumeRnd.NextDouble() * 0.01));
+                var buyMrkOrder = TradeSessionIntegrationBase.CreateNewOrder(Guid.NewGuid().ToString(), true, true, assetId, 1.11m + (decimal)(volumeRnd.NextDouble() * 0.01));
 
                 fixClient.Send(sellMrkOrder);
                 fixClient.GetResponse<Message>();

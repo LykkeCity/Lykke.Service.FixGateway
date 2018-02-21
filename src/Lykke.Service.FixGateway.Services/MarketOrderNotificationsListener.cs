@@ -39,7 +39,7 @@ namespace Lykke.Service.FixGateway.Services
             _mapper = mapper;
             _fixMessagesSender = fixMessagesSender;
             _log = log.CreateComponentScope(nameof(MarketOrderNotificationsListener));
-            _clientId = credentials.ClientId.ToString("D");
+            _clientId = credentials.ClientId.ToString();
             _ordersSubscription = marketOrderSubscriber.Subscribe(async trades => await HandleMarketOrderNotification(trades));
         }
 
