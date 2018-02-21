@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AutoMapper;
@@ -129,18 +128,28 @@ namespace Lykke.Service.FixGateway.Services
 
             var meResponse = await _matchingEngineClient.PlaceLimitOrderAsync(orderModel);
             await CheckResponseAndThrowIfNullAsync(meResponse);
-            var status = (MessageStatus)meResponse.Status;
+
+
+            SendResponse(newOrderId, request, meResponse.Status);
+
+        }
+
+        private void SendResponse(Guid newOrderId, NewOrderSingle request, MeStatusCodes meStatus)
+        {
+            var status = (MessageStatus)meStatus;
             //Send only if received OK. Other messages we will receive via RabbitMq
-            if (status == MessageStatus.Ok)
+            switch (status)
             {
-                var ack = CreteAckResponse(newOrderId, request);
-                Send(ack);
-            }
-            else if (new[] { MessageStatus.Runtime, MessageStatus.Duplicate }.Contains(status)) // All other errors will be delivered via RabbitMq
-            {
-                var rejectReason = _mapper.Map<OrdRejReason>(status);
-                var reject = CreateRejectResponse(newOrderId, request, rejectReason, status.ToString());
-                Send(reject);
+                case MessageStatus.Ok:
+                    var ack = CreteAckResponse(newOrderId, request);
+                    Send(ack);
+                    break;
+                case MessageStatus.Duplicate:
+                case MessageStatus.Runtime:
+                    var rejectReason = _mapper.Map<OrdRejReason>(status);
+                    var reject = CreateRejectResponse(newOrderId, request, rejectReason, status.ToString());
+                    Send(reject);
+                    break;
             }
         }
 
@@ -163,19 +172,9 @@ namespace Lykke.Service.FixGateway.Services
 
             var meResponse = await _matchingEngineClient.HandleMarketOrderAsync(orderModel);
             await CheckResponseAndThrowIfNullAsync(meResponse);
-            var status = (MessageStatus)meResponse.Status;
-            //Send only if received OK. Other messages we will receive via RabbitMq
-            if (status == MessageStatus.Ok)
-            {
-                var ack = CreteAckResponse(newOrderId, request);
-                Send(ack);
-            }
-            else if (new[] { MessageStatus.Runtime, MessageStatus.Duplicate }.Contains(status)) // All other errors will be delivered via RabbitMq
-            {
-                var rejectReason = _mapper.Map<OrdRejReason>(status);
-                var reject = CreateRejectResponse(newOrderId, request, rejectReason, status.ToString());
-                Send(reject);
-            }
+
+
+            SendResponse(newOrderId, request, meResponse.Status);
         }
 
         private async Task CheckResponseAndThrowIfNullAsync(object response)
@@ -202,12 +201,12 @@ namespace Lykke.Service.FixGateway.Services
             };
         }
 
-        private async Task<MatchingEngine.Connector.Abstractions.Models.LimitOrderFeeModel> GetLimitOrderFeeAsync(string assetPairId, OrderAction orderAction)
+        private async Task<LimitOrderFeeModel> GetLimitOrderFeeAsync(string assetPairId, OrderAction orderAction)
         {
             var assetPair = await _assetsServiceWithCache.TryGetAssetPairAsync(assetPairId);
             var fee = await _feeCalculatorClient.GetLimitOrderFees(_credentials.ClientId.ToString("D"), assetPairId, assetPair?.BaseAssetId, _mapper.Map<FeeCalculator.AutorestClient.Models.OrderAction>(orderAction));
 
-            return new MatchingEngine.Connector.Abstractions.Models.LimitOrderFeeModel
+            return new LimitOrderFeeModel
             {
                 MakerSize = (double)fee.MakerFeeSize,
                 TakerSize = (double)fee.TakerFeeSize,

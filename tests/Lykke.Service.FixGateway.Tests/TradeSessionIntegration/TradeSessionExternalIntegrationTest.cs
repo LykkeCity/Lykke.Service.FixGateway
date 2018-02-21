@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Threading;
 using NUnit.Framework;
 using QuickFix.Fields;
@@ -7,7 +6,7 @@ using QuickFix.FIX44;
 
 namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
 {
-    [TestFixture]
+    [TestFixture, Explicit("Only for manual testing on a dev machine")]
     internal class TradeSessionLocalIntegrationTest : TradeSessionIntegrationBase
     {
 

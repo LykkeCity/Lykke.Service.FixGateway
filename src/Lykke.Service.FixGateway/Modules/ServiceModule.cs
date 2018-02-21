@@ -1,6 +1,5 @@
 ﻿using System;
 using Autofac;
-using Common;
 using Common.Log;
 using Lykke.Service.FixGateway.Core.Domain;
 using Lykke.Service.FixGateway.Core.Services;
