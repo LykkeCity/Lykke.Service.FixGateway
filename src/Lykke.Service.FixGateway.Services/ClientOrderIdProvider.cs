@@ -79,14 +79,14 @@ namespace Lykke.Service.FixGateway.Services
         {
             var operations = _operationsClient.Get(_credentials.ClientId, OperationStatus.Created).GetAwaiter().GetResult().ToArray();
 
-            var transaction = GetDatabase().CreateTransaction();
-            transaction.KeyDeleteAsync(_key); // Do not await here
+            GetDatabase().KeyDeleteAsync(_key).GetAwaiter().GetResult();
+            var batch = GetDatabase().CreateBatch();
             foreach (var operation in operations)
             {
                 var coid = JsonConvert.DeserializeObject<NewOrderContext>(operation.ContextJson).ClientOrderId;
-                transaction.SetAddAsync(_key, coid); // and here also
+                batch.SetAddAsync(_key, coid); // and here also
             }
-            transaction.Execute();
+            batch.Execute();
 
         }
     }

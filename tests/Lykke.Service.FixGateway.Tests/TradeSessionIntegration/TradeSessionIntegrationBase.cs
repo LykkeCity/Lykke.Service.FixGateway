@@ -23,7 +23,7 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
         public virtual void SetUp()
         {
             var appSettings = new LocalSettingsReloadingManager<AppSettings>("appsettings.Development.json");
-           var  sessionSetting = appSettings.CurrentValue.FixGatewayService.Sessions.TradeSession;
+            var sessionSetting = appSettings.CurrentValue.FixGatewayService.Sessions.TradeSession;
             var builder = new ContainerBuilder();
             InitContainer(appSettings, builder);
             _container = builder.Build();
@@ -32,7 +32,7 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
             FIXClient = new FixClient(sessionSetting.SenderCompID, sessionSetting.TargetCompID, port: 12357);
             _sessionManager.Start();
             FIXClient.Start();
-            ClientOrderId = Guid.NewGuid().ToString("D");
+            ClientOrderId = Guid.NewGuid().ToString();
             _container.Resolve<IStartupManager>().StartAsync().GetAwaiter().GetResult();
         }
 
@@ -65,18 +65,18 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
 
 
 
-        protected NewOrderSingle CreateNewOrder(bool isMarket = true, bool isBuy = true, string assetPairId = "BTCUSD", decimal qty = 0.1m, decimal? price = null)
+        public static NewOrderSingle CreateNewOrder(string clientOrderId, bool isMarket = true, bool isBuy = true, string assetPairId = "BTCUSD", decimal qty = 0.1m, decimal? price = null)
         {
             var nos = new NewOrderSingle
             {
                 Account = new Account(Const.ClientId),
-                ClOrdID = new ClOrdID(ClientOrderId),
+                ClOrdID = new ClOrdID(clientOrderId),
                 Symbol = new Symbol(assetPairId),
                 Side = isBuy ? new Side(Side.BUY) : new Side(Side.SELL),
                 OrderQty = new OrderQty(qty),
                 OrdType = isMarket ? new OrdType(OrdType.MARKET) : new OrdType(OrdType.LIMIT),
                 Price = new Price(price ?? 0M),
-                TimeInForce = new TimeInForce(TimeInForce.FILL_OR_KILL),
+                TimeInForce = isMarket ? new TimeInForce(TimeInForce.FILL_OR_KILL) : new TimeInForce(TimeInForce.GOOD_TILL_CANCEL),
                 TransactTime = new TransactTime(DateTime.UtcNow)
             };
             return nos;

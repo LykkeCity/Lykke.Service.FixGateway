@@ -15,7 +15,7 @@ using OrderStatus = Lykke.Service.FixGateway.Services.DTO.MatchingEngine.OrderSt
 namespace Lykke.Service.FixGateway.Services
 {
     [UsedImplicitly]
-    public sealed class MatchingEngineNotificationListener : IDisposable
+    public sealed class MarketOrderNotificationsListener : IDisposable
     {
         private readonly IClientOrderIdProvider _clientOrderIdProvider;
         private readonly SessionState _sessionState;
@@ -25,7 +25,7 @@ namespace Lykke.Service.FixGateway.Services
         private readonly string _clientId;
         private readonly IDisposable _ordersSubscription;
 
-        public MatchingEngineNotificationListener(
+        public MarketOrderNotificationsListener(
             Credentials credentials,
             IClientOrderIdProvider clientOrderIdProvider,
             IObservable<MarketOrderWithTrades> marketOrderSubscriber,
@@ -38,8 +38,8 @@ namespace Lykke.Service.FixGateway.Services
             _sessionState = sessionState;
             _mapper = mapper;
             _fixMessagesSender = fixMessagesSender;
-            _log = log.CreateComponentScope(nameof(MatchingEngineNotificationListener));
-            _clientId = credentials.ClientId.ToString("D");
+            _log = log.CreateComponentScope(nameof(MarketOrderNotificationsListener));
+            _clientId = credentials.ClientId.ToString();
             _ordersSubscription = marketOrderSubscriber.Subscribe(async trades => await HandleMarketOrderNotification(trades));
         }
 
@@ -68,15 +68,12 @@ namespace Lykke.Service.FixGateway.Services
             if (marketOrder.Status == OrderStatus.Matched || marketOrder.Status == OrderStatus.Cancelled)
             {
                 response = GetSuccessfulMarketOrderResponse(marketOrder, clientOrderId);
-                Send(response);
             }
             else
             {
                 response = CreateFailedResponse(marketOrder, clientOrderId);
-                SendReject(response);
             }
-
-
+            Send(response);
         }
 
 
@@ -130,11 +127,6 @@ namespace Lykke.Service.FixGateway.Services
 
 
 
-
-        private void SendReject(Message message)
-        {
-            Send(message);
-        }
 
         private void Send(Message message)
         {

@@ -10,7 +10,7 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
         [Test]
         public void ShouldRejectIfTimeout()
         {
-            var orderRequest = CreateNewOrder();
+            var orderRequest = CreateNewOrder(ClientOrderId);
             FIXClient.Send(orderRequest);
 
             var response = FIXClient.GetResponse<Message>();

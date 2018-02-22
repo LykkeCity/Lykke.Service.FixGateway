@@ -1,6 +1,5 @@
 ﻿using System;
 using Autofac;
-using Common;
 using Common.Log;
 using Lykke.Service.FixGateway.Core.Domain;
 using Lykke.Service.FixGateway.Core.Services;
@@ -48,12 +47,16 @@ namespace Lykke.Service.FixGateway.Modules
                 .As<ISessionManager>()
                 .SingleInstance();
 
-            builder.RegisterInstance(_settings.CurrentValue.Credentials);
+            builder.RegisterInstance(_settings.CurrentValue.Credentials)
+                .SingleInstance();
 
             builder.RegisterType<NewOrderRequestHandler>()
                 .InstancePerLifetimeScope();
 
-            builder.RegisterType<MatchingEngineNotificationListener>()
+            builder.RegisterType<MarketOrderNotificationsListener>()
+                .InstancePerLifetimeScope();  
+            
+            builder.RegisterType<LimitOrderNotificationsListener>()
                 .InstancePerLifetimeScope();
 
             builder.RegisterType<ClientOrderIdProvider>()
@@ -79,7 +82,13 @@ namespace Lykke.Service.FixGateway.Modules
             builder.RegisterType<MessagesDispatcher<MarketOrderWithTrades>>()
                 .As<IObservable<MarketOrderWithTrades>>()
                 .AsSelf()
+                .SingleInstance();  
+            
+            builder.RegisterType<MessagesDispatcher<LimitOrdersReport>>()
+                .As<IObservable<LimitOrdersReport>>()
+                .AsSelf()
                 .SingleInstance();
+
             builder.RegisterType<MessagesDispatcher<OrderBook>>()
                 .As<IObservable<OrderBook>>()
                 .AsSelf()

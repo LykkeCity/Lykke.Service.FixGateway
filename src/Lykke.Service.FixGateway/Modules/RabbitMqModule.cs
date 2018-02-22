@@ -35,12 +35,12 @@ namespace Lykke.Service.FixGateway.Modules
                 .SetMessageReadStrategy(new MessageReadWithTemporaryQueueStrategy())
                 .SetLogger(c.Resolve<ILog>()));
 
-            var mos = _settings.CurrentValue.RabbitMq.IncomingMarketOrders;
+            var marketOrdConfig = _settings.CurrentValue.RabbitMq.IncomingMarketOrders;
             var orderSettings = new RabbitMqSubscriptionSettings
             {
-                ConnectionString = mos.ConnectionString,
-                ExchangeName = mos.Exchange,
-                QueueName = mos.Queue
+                ConnectionString = marketOrdConfig.ConnectionString,
+                ExchangeName = marketOrdConfig.Exchange,
+                QueueName = marketOrdConfig.Queue
             };
 
             var ordersErrorStrategy = new DefaultErrorHandlingStrategy(_log, orderSettings);
@@ -48,6 +48,22 @@ namespace Lykke.Service.FixGateway.Modules
             builder.Register(c => new RabbitMqSubscriber<MarketOrderWithTrades>(orderSettings, ordersErrorStrategy)
                 .SetMessageDeserializer(new JsonMessageDeserializer<MarketOrderWithTrades>())
                 .SetMessageReadStrategy(new MessageReadWithTemporaryQueueStrategy())
+                .SetLogger(c.Resolve<ILog>()));
+
+
+            var limitOrdConfig = _settings.CurrentValue.RabbitMq.IncomingLimitOrders;
+            var limitOrderSettings = new RabbitMqSubscriptionSettings
+            {
+                ConnectionString = limitOrdConfig.ConnectionString,
+                ExchangeName = limitOrdConfig.Exchange,
+                QueueName = limitOrdConfig.Queue,
+                IsDurable = true
+            };
+
+            var limitOrdersErrorStrategy = new DefaultErrorHandlingStrategy(_log, limitOrderSettings);
+            builder.Register(c => new RabbitMqSubscriber<LimitOrdersReport>(limitOrderSettings, limitOrdersErrorStrategy)
+                .SetMessageDeserializer(new JsonMessageDeserializer<LimitOrdersReport>())
+                .CreateDefaultBinding()
                 .SetLogger(c.Resolve<ILog>()));
         }
     }
