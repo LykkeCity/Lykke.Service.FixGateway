@@ -197,7 +197,7 @@ namespace Lykke.Service.FixGateway.Services
                 Size = (double)fee.Amount,
                 SourceClientId = _credentials.ClientId.ToString(),
                 TargetClientId = _feeSettings.TargetClientId.Hft,
-                Type = (int)MarketOrderFeeType.CLIENT_FEE
+                Type = fee.Amount == 0 ? (int)MarketOrderFeeType.NO_FEE : (int)MarketOrderFeeType.CLIENT_FEE
             };
         }
 
@@ -212,7 +212,7 @@ namespace Lykke.Service.FixGateway.Services
                 TakerSize = (double)fee.TakerFeeSize,
                 SourceClientId = _credentials.ClientId.ToString(),
                 TargetClientId = _feeSettings.TargetClientId.Hft,
-                Type = (int)LimitOrderFeeType.CLIENT_FEE
+                Type = fee.MakerFeeSize == 0 && fee.TakerFeeSize == 0 ? (int)LimitOrderFeeType.NO_FEE : (int)LimitOrderFeeType.CLIENT_FEE
             };
         }
 
