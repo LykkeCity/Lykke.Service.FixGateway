@@ -2,60 +2,95 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Common.Log;
+using JetBrains.Annotations;
+using Lykke.MatchingEngine.Connector.Abstractions.Models;
+using Lykke.MatchingEngine.Connector.Abstractions.Services;
 using Lykke.Service.FixGateway.Core.Services;
-using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
 using QuickFix.Fields;
 using QuickFix.FIX44;
 using Message = QuickFix.Message;
 
 namespace Lykke.Service.FixGateway.Services
 {
-    public class OrderCancelRequestHandler: IRequestHandler<OrderCancelRequest>
+    [UsedImplicitly]
+    public sealed class OrderCancelRequestHandler : IRequestHandler<OrderCancelRequest>
     {
-        private readonly Credentials _credentials;
         private readonly SessionState _sessionState;
         private readonly IFixMessagesSender _fixMessagesSender;
         private readonly ILog _log;
         private readonly CancellationTokenSource _tokenSource;
         private readonly IClientOrderIdProvider _clientOrderIdProvider;
+        private readonly IMatchingEngineClient _matchingEngineClient;
 
-
+        public OrderCancelRequestHandler(SessionState sessionState, IFixMessagesSender fixMessagesSender, ILog log, IClientOrderIdProvider clientOrderIdProvider, IMatchingEngineClient matchingEngineClient)
+        {
+            _sessionState = sessionState;
+            _fixMessagesSender = fixMessagesSender;
+            _log = log;
+            _clientOrderIdProvider = clientOrderIdProvider;
+            _matchingEngineClient = matchingEngineClient;
+            _tokenSource = new CancellationTokenSource();
+        }
 
 
         public void Handle(OrderCancelRequest request)
         {
             Task.Factory.StartNew(HandleRequestAsync, request, _tokenSource.Token).Unwrap().GetAwaiter().GetResult();
-
         }
 
         private async Task HandleRequestAsync(object input)
         {
-//            var request = (OrderCancelRequest)input;
-//            var newOrderId = GenerateOrderId();
-//            try
-//            {
-//                if (!await ValidateRequestAsync(newOrderId, request))
-//                {
-//                    return;
-//                }
-//
-//                await _clientOrderIdProvider.RegisterNewOrderAsync(newOrderId, request.ClOrdID.Obj);
-//
-//                if (IsMarketOrder(request))
-//                {
-//                    await HandleMarketOrderAsync(newOrderId, request);
-//                }
-//                else
-//                {
-//                    await HandleLimitOrderAsync(newOrderId, request);
-//                }
-//            }
-//            catch (Exception ex)
-//            {
-//                await _log.WriteWarningAsync(nameof(HandleRequestAsync), $"NewOrederRequest. Id {newOrderId}", "", ex);
-//                var reject = CreateRejectResponse(newOrderId, request, OrdRejReason.OTHER);
-//                Send(reject);
-//            }
+            var request = (OrderCancelRequest)input;
+
+            try
+            {
+                if (!await ValidateRequestAsync(request))
+                {
+                    return;
+                }
+                var orderId = await _clientOrderIdProvider.GetOrderIdByClientOrderId(request.OrigClOrdID.Obj);
+                var meResponse = await _matchingEngineClient.CancelLimitOrderAsync(orderId.ToString());
+                await CheckResponseAndThrowIfNullAsync(meResponse);
+                Message response;
+                switch (meResponse.Status)
+                {
+                    case MeStatusCodes.Ok:
+                        response = CreteAckResponse(request);
+                        break;
+                    case MeStatusCodes.AlreadyProcessed:
+                        response = CreateRejectResponse(request, CxlRejReason.ALREADY_PENDING);
+                        break;
+                    case MeStatusCodes.NotFound:
+                        response = CreateRejectResponse(request, CxlRejReason.UNKNOWN_ORDER);
+                        break;
+                    case MeStatusCodes.Runtime:
+                        response = CreateRejectResponse(request, CxlRejReason.OTHER);
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unexpected ME status {meResponse.Status}");
+                }
+
+                Send(response);
+
+            }
+            catch (Exception ex)
+            {
+                var clOrdId = request.ClOrdID.Obj;
+                await _log.WriteWarningAsync(nameof(HandleRequestAsync), $"OrderCancelRequest. Id {clOrdId}", "", ex);
+                var reject = CreateRejectResponse(request, CxlRejReason.OTHER);
+                Send(reject);
+            }
+        }
+
+
+        private async Task CheckResponseAndThrowIfNullAsync(object response)
+        {
+            if (response == null)
+            {
+                var exception = new InvalidOperationException("ME not available");
+                await _log.WriteErrorAsync(nameof(NewOrderRequestHandler), nameof(CheckResponseAndThrowIfNullAsync), exception);
+                throw exception;
+            }
         }
 
         public void Dispose()
@@ -64,23 +99,68 @@ namespace Lykke.Service.FixGateway.Services
             _tokenSource.Dispose();
         }
 
-        
+
         private void Send(Message message)
         {
             _fixMessagesSender.Send(message, _sessionState.SessionID);
         }
 
-        
-//        private async Task<bool> ValidateRequestAsync(Guid newOrderId, NewOrderSingle request)
-//        {
-//            var rejectReason = await _orderCharacteristicsValidator.ValidateRequestAsync(request);
-//            if (rejectReason != null)
-//            {
-//                var reject = CreateRejectResponse(newOrderId, request, rejectReason);
-//                Send(reject);
-//                return false;
-//            }
-//            return true;
-//        }
+
+        private async Task<bool> ValidateRequestAsync(OrderCancelRequest request)
+        {
+            var rejectReason = -1;
+            if (!await _clientOrderIdProvider.CheckExistsAsync(request.OrigClOrdID.Obj))
+            {
+                rejectReason = CxlRejReason.UNKNOWN_ORDER;
+            }
+
+            if (rejectReason != -1)
+            {
+                var reject = CreateRejectResponse(request, rejectReason);
+                Send(reject);
+                return false;
+            }
+            return true;
+        }
+
+        private Message CreteAckResponse(OrderCancelRequest request)
+        {
+            var ack = new ExecutionReport
+            {
+                OrderID = new OrderID(Guid.NewGuid().ToString()),
+                ClOrdID = new ClOrdID(request.ClOrdID.Obj),
+                OrigClOrdID = new OrigClOrdID(request.OrigClOrdID.Obj),
+                ExecID = new ExecID(_sessionState.NextOrderReportId.ToString()),
+                OrdStatus = new OrdStatus(OrdStatus.PENDING_CANCEL),
+                ExecType = new ExecType(ExecType.PENDING_CANCEL),
+                Symbol = new Symbol("NoSymbol"),
+                LeavesQty = new LeavesQty(0),
+                CumQty = new CumQty(0),
+                AvgPx = new AvgPx(0),
+                Side = new Side(Side.BUY)
+            };
+
+            return ack;
+        }
+
+        private Message CreateRejectResponse(OrderCancelRequest request, int rejectReason, string rejectDescription = null)
+        {
+            var ordId = rejectReason == CxlRejReason.UNKNOWN_ORDER ? "NONE" : Guid.NewGuid().ToString();
+            var reject = new OrderCancelReject
+            {
+                OrderID = new OrderID(ordId),
+                OrigClOrdID = new OrigClOrdID(request.OrigClOrdID.Obj),
+                ClOrdID = new ClOrdID(request.ClOrdID.Obj),
+                OrdStatus = new OrdStatus(OrdStatus.REJECTED),
+                CxlRejReason = new CxlRejReason(rejectReason),
+                CxlRejResponseTo = new CxlRejResponseTo(CxlRejResponseTo.ORDER_CANCEL_REQUEST)
+
+            };
+            if (rejectDescription != null)
+            {
+                reject.Text = new Text(rejectDescription);
+            }
+            return reject;
+        }
     }
 }

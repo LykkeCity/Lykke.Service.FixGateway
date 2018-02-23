@@ -10,7 +10,7 @@ using NUnit.Framework;
 
 namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
 {
-    [TestFixture]
+    [TestFixture, Explicit]
     internal class FeeServiceFailedTest : ExternalServiceFailedBase
     {
         protected override void InitContainer(LocalSettingsReloadingManager<AppSettings> appSettings, ContainerBuilder builder)
@@ -18,7 +18,8 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
             base.InitContainer(appSettings, builder);
             var ocProxy = Substitute.For<IFeeCalculatorClient>();
 
-            ocProxy.GetMarketOrderFees("", "", "", OrderAction.Buy).ThrowsForAnyArgs(new SocketException());
+            ocProxy.GetMarketOrderAssetFee("", "", "", OrderAction.Buy).ThrowsForAnyArgs(new SocketException());
+            ocProxy.GetLimitOrderFees("", "", "", OrderAction.Buy).ThrowsForAnyArgs(new SocketException());
 
             builder.RegisterInstance(ocProxy)
                 .As<IFeeCalculatorClient>();

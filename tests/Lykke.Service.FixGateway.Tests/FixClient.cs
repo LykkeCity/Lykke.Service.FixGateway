@@ -118,7 +118,7 @@ namespace Lykke.Service.FixGateway.Tests
                     _response = null;
                     return (T)copy;
                 }
-                Thread.Sleep(20);
+                Thread.Sleep(30);
             }
             return null;
         }

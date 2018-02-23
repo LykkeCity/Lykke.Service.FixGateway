@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using QuickFix.Fields;
 using QuickFix.FIX44;
@@ -28,6 +29,12 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
         public void ShouldPlaceLimitOrder()
         {
             SharedTest.ShouldPlaceLimitOrder(FIXClient, CreateNewOrder(ClientOrderId, isMarket: false, assetPairId: "BTCLKK", qty: 0.01m, isBuy: false, price: 10591.0m));
+        }
+
+        [Test]
+        public void ShouldCancelLimitOrder()
+        {
+            SharedTest.ShouldCancelLimitOrder(FIXClient, CreateNewOrder(ClientOrderId, isMarket: false, assetPairId: "BTCLKK", qty: 0.01m, isBuy: false, price: 5000.0m));
         }
 
         [Test]
@@ -117,6 +124,49 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
 
 
             Thread.Sleep(1000000);
+        }
+
+        public static void ShouldCancelLimitOrder(FixClient fixClient, NewOrderSingle orderRequest)
+        {
+            var cleintOrdId = orderRequest.ClOrdID.Obj;
+            fixClient.Send(orderRequest);
+
+            var response = fixClient.GetResponse<Message>();
+
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response, Is.TypeOf<ExecutionReport>());
+
+            var ex = (ExecutionReport)response;
+            Assert.That(ex.OrdStatus.Obj, Is.EqualTo(OrdStatus.PENDING_NEW));
+            Assert.That(ex.ExecType.Obj, Is.EqualTo(ExecType.PENDING_NEW));
+
+            var cancleRequest = new OrderCancelRequest
+            {
+                ClOrdID = new ClOrdID(Guid.NewGuid().ToString()),
+                OrigClOrdID = new OrigClOrdID(cleintOrdId),
+                TransactTime = new TransactTime(DateTime.UtcNow)
+            };
+
+            fixClient.Send(cancleRequest);
+
+            response = fixClient.GetResponse<Message>();
+
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response, Is.TypeOf<ExecutionReport>());
+
+            ex = (ExecutionReport)response;
+            Assert.That(ex.OrdStatus.Obj, Is.EqualTo(OrdStatus.PENDING_CANCEL));
+            Assert.That(ex.ExecType.Obj, Is.EqualTo(ExecType.PENDING_CANCEL));
+
+            response = fixClient.GetResponse<Message>();
+
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response, Is.TypeOf<ExecutionReport>());
+            ex = (ExecutionReport)response;
+            Assert.That(ex.OrdStatus.Obj, Is.EqualTo(OrdStatus.CANCELED));
+            Assert.That(ex.ExecType.Obj, Is.EqualTo(ExecType.CANCELED));
+
+      //      Task.Delay(1000000);
         }
 
         public static void OrderMonkey(FixClient fixClient, decimal basePrice, string assetId)

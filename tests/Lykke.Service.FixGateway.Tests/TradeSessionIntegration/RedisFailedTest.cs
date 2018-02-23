@@ -10,7 +10,7 @@ using NUnit.Framework;
 
 namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
 {
-    [TestFixture]
+    [TestFixture, Explicit]
     internal class RedisFailedTest : ExternalServiceFailedBase
     {
         protected override void InitContainer(LocalSettingsReloadingManager<AppSettings> appSettings, ContainerBuilder builder)
@@ -19,7 +19,7 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
             var cop = Substitute.For<IClientOrderIdProvider>();
             cop.RemoveCompletedAsync(Arg.Any<Guid>()).ThrowsForAnyArgs(new SocketException());
             cop.CheckExistsAsync(Arg.Any<string>()).ThrowsForAnyArgs(new SocketException());
-            cop.GetClientOrderIdByOrderIdAsync(Arg.Any<Guid>()).ThrowsForAnyArgs(new SocketException());
+            cop.TryGetClientOrderIdByOrderIdAsync(Arg.Any<Guid>()).ThrowsForAnyArgs(new SocketException());
             cop.RegisterNewOrderAsync(Arg.Any<Guid>(), "").ThrowsForAnyArgs(new SocketException());
 
             builder.RegisterInstance(cop)

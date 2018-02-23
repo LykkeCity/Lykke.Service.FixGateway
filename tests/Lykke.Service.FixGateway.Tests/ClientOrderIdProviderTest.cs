@@ -88,46 +88,29 @@ namespace Lykke.Service.FixGateway.Tests
         }
 
         [Test]
-        public async Task ShouldReturnClientOrderIdFromDb()
+        public async Task ShouldReturnClientOrderIdFromCache()
         {
-            var ret = new OperationModel
-            {
-                ContextJson = JsonConvert.SerializeObject(new NewOrderContext
-                {
-                    ClientOrderId = _clientOrderId
-                }
-                )
-            };
 
-            _operationsClient.Get(Arg.Any<Guid>()).Returns(Task.FromResult(ret));
+            await _clientOrderIdProvider.RegisterNewOrderAsync(_orderId, _clientOrderId);
 
-            var actual = await _clientOrderIdProvider.GetClientOrderIdByOrderIdAsync(_orderId);
+            var actual = await _clientOrderIdProvider.TryGetClientOrderIdByOrderIdAsync(_orderId);
 
-            Assert.That(actual, Is.EqualTo(_clientOrderId));
+            Assert.That(actual.clientOrderId, Is.EqualTo(_clientOrderId));
         }
 
         [Test]
         public async Task ShouldDeleteCompletedFromCache()
         {
-            var ret = new OperationModel
-            {
-                Id = _orderId,
-                ContextJson = JsonConvert.SerializeObject(new NewOrderContext
-                {
-                    ClientOrderId = _clientOrderId
-                }
-                )
-            };
-
-            _operationsClient.Get(Arg.Any<Guid>()).Returns(Task.FromResult(ret));
-            await _multiplexer.GetDatabase().HashSetAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId), _clientOrderId, _orderId.ToString());
+            await _clientOrderIdProvider.RegisterNewOrderAsync(_orderId, _clientOrderId);
 
 
             await _clientOrderIdProvider.RemoveCompletedAsync(_orderId);
 
 
-            var set = await _multiplexer.GetDatabase().HashExistsAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId), _clientOrderId);
-            Assert.That(set, Is.False);
+            var set1 = await _multiplexer.GetDatabase().HashExistsAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId), _clientOrderId);
+            var set2 = await _multiplexer.GetDatabase().HashExistsAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId), _orderId.ToString());
+            Assert.That(set1, Is.False);
+            Assert.That(set2, Is.False);
         }
 
 

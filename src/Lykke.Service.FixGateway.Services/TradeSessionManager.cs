@@ -132,6 +132,19 @@ namespace Lykke.Service.FixGateway.Services
             {
                 _log.WriteWarning("Handle NewOrderSingle", $"SessionID:{sessionID}", "Inconsistent state of the session. Inform developers about this.");
             }
+        }   
+        
+        private void HandleRequest(OrderCancelRequest request, SessionID sessionID)
+        {
+            if (_sessionContainers.TryGetValue(sessionID, out var scope))
+            {
+                scope.Resolve<OrderCancelRequestHandler>()
+                    .Handle(request);
+            }
+            else
+            {
+                _log.WriteWarning("Handle NewOrderSingle", $"SessionID:{sessionID}", "Inconsistent state of the session. Inform developers about this.");
+            }
         }
 
         // ReSharper disable once ParameterOnlyUsedForPreconditionCheck.Local
@@ -151,9 +164,12 @@ namespace Lykke.Service.FixGateway.Services
                 var innerScope = _lifetimeScope.BeginLifetimeScope();
                 var op = innerScope.Resolve<IClientOrderIdProvider>();
                 op.Start();
-                innerScope.Resolve<NewOrderRequestHandler>(TypedParameter.From(new SessionState(sessionID)));
-                innerScope.Resolve<MarketOrderNotificationsListener>(TypedParameter.From(new SessionState(sessionID)));
-                innerScope.Resolve<LimitOrderNotificationsListener>(TypedParameter.From(new SessionState(sessionID)));
+
+                var sessionState = new SessionState(sessionID);
+                innerScope.Resolve<NewOrderRequestHandler>(TypedParameter.From(sessionState));
+                innerScope.Resolve<MarketOrderNotificationsListener>(TypedParameter.From(sessionState));
+                innerScope.Resolve<LimitOrderNotificationsListener>(TypedParameter.From(sessionState));
+                innerScope.Resolve<OrderCancelRequestHandler>(TypedParameter.From(sessionState));
                 _sessionContainers.TryAdd(sessionID, innerScope);
             }
             catch (Exception ex)

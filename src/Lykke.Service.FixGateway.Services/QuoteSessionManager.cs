@@ -163,8 +163,9 @@ namespace Lykke.Service.FixGateway.Services
             try
             {
                 var innerScope = _lifetimeScope.BeginLifetimeScope();
-                innerScope.Resolve<AssetsListRequestHandler>(TypedParameter.From(new SessionState(sessionID)));
-                innerScope.Resolve<MarketDataRequestHandler>(TypedParameter.From(new SessionState(sessionID)));
+                var sessionState = new SessionState(sessionID);
+                innerScope.Resolve<AssetsListRequestHandler>(TypedParameter.From(sessionState));
+                innerScope.Resolve<MarketDataRequestHandler>(TypedParameter.From(sessionState));
                 _sessionContainers.TryAdd(sessionID, innerScope);
             }
             catch (Exception ex)
