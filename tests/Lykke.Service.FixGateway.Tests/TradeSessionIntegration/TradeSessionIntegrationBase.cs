@@ -4,7 +4,6 @@ using Common.Log;
 using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
 using Lykke.Service.FixGateway.Modules;
-using Lykke.Service.FixGateway.Services;
 using Lykke.SettingsReader;
 using NUnit.Framework;
 using QuickFix.Fields;
@@ -14,7 +13,6 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
 {
     internal abstract class TradeSessionIntegrationBase : IDisposable
     {
-        private TradeSessionManager _sessionManager;
         private IContainer _container;
         protected string ClientOrderId;
         protected FixClient FIXClient;
@@ -27,21 +25,18 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
             var builder = new ContainerBuilder();
             InitContainer(appSettings, builder);
             _container = builder.Build();
+            _container.Resolve<IStartupManager>().StartAsync().GetAwaiter().GetResult();
 
-            _sessionManager = _container.Resolve<TradeSessionManager>();
             FIXClient = new FixClient(sessionSetting.SenderCompID, sessionSetting.TargetCompID, port: 12357);
-            _sessionManager.Start();
             FIXClient.Start();
             ClientOrderId = Guid.NewGuid().ToString();
-            _container.Resolve<IStartupManager>().StartAsync().GetAwaiter().GetResult();
         }
 
         [TearDown]
         public virtual void TearDown()
         {
             FIXClient?.Stop();
-            _sessionManager?.Stop();
-            _sessionManager?.Dispose();
+            _container.Resolve<IShutdownManager>().StopAsync().GetAwaiter().GetResult();
         }
 
         protected virtual void InitContainer(LocalSettingsReloadingManager<AppSettings> appSettings, ContainerBuilder builder)

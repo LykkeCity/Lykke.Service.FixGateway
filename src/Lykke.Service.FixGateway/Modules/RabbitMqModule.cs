@@ -6,6 +6,7 @@ using Lykke.Service.FixGateway.Core.Domain;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
 using Lykke.Service.FixGateway.Services.DTO.MatchingEngine;
 using Lykke.SettingsReader;
+using Microsoft.ApplicationInsights.Extensibility;
 
 namespace Lykke.Service.FixGateway.Modules
 {
@@ -23,6 +24,11 @@ namespace Lykke.Service.FixGateway.Modules
 
         protected override void Load(ContainerBuilder builder)
         {
+
+#if DEBUG
+            TelemetryConfiguration.Active.DisableTelemetry = true;
+#endif
+
             var rabbitSettings = new RabbitMqSubscriptionSettings
             {
                 ConnectionString = _settings.CurrentValue.RabbitMq.IncomingOrderBooks.ConnectionString,
@@ -33,7 +39,8 @@ namespace Lykke.Service.FixGateway.Modules
             builder.Register(c => new RabbitMqSubscriber<OrderBook>(rabbitSettings, errorStrategy)
                 .SetMessageDeserializer(new JsonMessageDeserializer<OrderBook>())
                 .SetMessageReadStrategy(new MessageReadWithTemporaryQueueStrategy())
-                .SetLogger(c.Resolve<ILog>()));
+                .SetLogger(c.Resolve<ILog>()))
+                .SingleInstance();
 
             var marketOrdConfig = _settings.CurrentValue.RabbitMq.IncomingMarketOrders;
             var orderSettings = new RabbitMqSubscriptionSettings
@@ -48,7 +55,8 @@ namespace Lykke.Service.FixGateway.Modules
             builder.Register(c => new RabbitMqSubscriber<MarketOrderWithTrades>(orderSettings, ordersErrorStrategy)
                 .SetMessageDeserializer(new JsonMessageDeserializer<MarketOrderWithTrades>())
                 .SetMessageReadStrategy(new MessageReadWithTemporaryQueueStrategy())
-                .SetLogger(c.Resolve<ILog>()));
+                .SetLogger(c.Resolve<ILog>()))
+                .SingleInstance();
 
 
             var limitOrdConfig = _settings.CurrentValue.RabbitMq.IncomingLimitOrders;
@@ -64,7 +72,8 @@ namespace Lykke.Service.FixGateway.Modules
             builder.Register(c => new RabbitMqSubscriber<LimitOrdersReport>(limitOrderSettings, limitOrdersErrorStrategy)
                 .SetMessageDeserializer(new JsonMessageDeserializer<LimitOrdersReport>())
                 .CreateDefaultBinding()
-                .SetLogger(c.Resolve<ILog>()));
+                .SetLogger(c.Resolve<ILog>()))
+                .SingleInstance();
         }
     }
 }

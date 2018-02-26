@@ -57,6 +57,9 @@ namespace Lykke.Service.FixGateway.Modules
                 .InstancePerLifetimeScope();  
             
             builder.RegisterType<LimitOrderNotificationsListener>()
+                .InstancePerLifetimeScope(); 
+
+            builder.RegisterType<OrderCancelRequestHandler>()
                 .InstancePerLifetimeScope();
 
             builder.RegisterType<ClientOrderIdProvider>()

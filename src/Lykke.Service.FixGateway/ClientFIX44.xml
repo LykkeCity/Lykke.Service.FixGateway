@@ -1492,14 +1492,14 @@
     <field name="AcctIDSource" required="N" />
     <field name="AccountType" required="N" />
     <component name="Parties" required="N" />
-    <component name="Instrument" required="Y" />
+    <component name="Instrument" required="N" />
     <component name="FinancingDetails" required="N" />
     <group name="NoUnderlyings" required="N">
       <component name="UnderlyingInstrument" required="N" />
     </group>
-    <field name="Side" required="Y" />
+    <field name="Side" required="N" />
     <field name="TransactTime" required="Y" />
-    <component name="OrderQtyData" required="Y" />
+    <component name="OrderQtyData" required="N" />
     <field name="ComplianceID" required="N" />
     <field name="Text" required="N" />
     <field name="EncodedTextLen" required="N" />

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Lykke.Contracts.Operations;
@@ -18,6 +19,7 @@ namespace Lykke.Service.FixGateway.Services
         private readonly Credentials _credentials;
         private readonly RedisKey _key;
         public const string KeyPrefix = "FixGateway:WalletId:{0}";
+        private readonly TimeSpan _keyExpirationPeriod = TimeSpan.FromDays(7);
 
         public ClientOrderIdProvider(IOperationsClient operationsClient, IConnectionMultiplexer connectionMultiplexer, Credentials credentials)
         {
@@ -39,10 +41,16 @@ namespace Lykke.Service.FixGateway.Services
 
             try
             {
-                if (!await GetDatabase().SetAddAsync(_key, clientOrderId))
+                var db = GetDatabase();
+                var batch = db.CreateBatch();
+                var tasks = new List<Task>
                 {
-                    throw new InvalidOperationException(@"Duplicate ClOrdId");
-                }
+                    batch.HashSetAsync(_key, clientOrderId, orderId.ToString()),
+                    batch.HashSetAsync(_key, orderId.ToString(), clientOrderId),
+                    batch.KeyExpireAsync(_key, _keyExpirationPeriod)
+                };
+                batch.Execute();
+                await Task.WhenAll(tasks);
             }
             catch (Exception)
             {
@@ -58,36 +66,59 @@ namespace Lykke.Service.FixGateway.Services
 
         public Task<bool> CheckExistsAsync(string clientOrderId)
         {
-            return GetDatabase().SetContainsAsync(_key, clientOrderId);
+            return GetDatabase().HashExistsAsync(_key, clientOrderId);
         }
 
         public async Task RemoveCompletedAsync(Guid orderId)
         {
-            var coid = await GetClientOrderIdByOrderIdAsync(orderId);
+            var clientOrderId = await FindClientOrderIdByOrderIdAsync(orderId);
             await _operationsClient.Complete(orderId);
-            await GetDatabase().SetRemoveAsync(_key, coid);
+            var db = GetDatabase();
+            if (!string.IsNullOrEmpty(clientOrderId))
+            {
+                await db.HashDeleteAsync(_key, clientOrderId);
+            }
+
+            await db.HashDeleteAsync(_key, orderId.ToString());
         }
 
-        public async Task<string> GetClientOrderIdByOrderIdAsync(Guid orderId)
+        public async Task<string> FindClientOrderIdByOrderIdAsync(Guid orderId)
         {
-            var context = await _operationsClient.Get(orderId);
-            var coid = JsonConvert.DeserializeObject<NewOrderContext>(context.ContextJson).ClientOrderId;
-            return coid;
+            var db = GetDatabase();
+            var clientOrderId = await db.HashGetAsync(_key, orderId.ToString());
+            return clientOrderId;
+        }
+
+        public async Task<Guid> GetOrderIdByClientOrderId(string clientOrderId)
+        {
+            var db = GetDatabase();
+            var ordId = await db.HashGetAsync(_key, clientOrderId);
+            if (!ordId.HasValue)
+            {
+                throw new InvalidOperationException($"Unknown ClientOrderID {clientOrderId}");
+            }
+            return Guid.Parse(ordId);
         }
 
         public void Start()
         {
-            var operations = _operationsClient.Get(_credentials.ClientId, OperationStatus.Created).GetAwaiter().GetResult().ToArray();
+            var operations = _operationsClient.Get(_credentials.ClientId, OperationStatus.Created).GetAwaiter().GetResult();
+            var db = GetDatabase();
+            var tasks = new List<Task>();
 
-            GetDatabase().KeyDeleteAsync(_key).GetAwaiter().GetResult();
-            var batch = GetDatabase().CreateBatch();
+            var batch = db.CreateBatch();
+
+            tasks.Add(db.KeyDeleteAsync(_key));
             foreach (var operation in operations)
             {
-                var coid = JsonConvert.DeserializeObject<NewOrderContext>(operation.ContextJson).ClientOrderId;
-                batch.SetAddAsync(_key, coid); // and here also
+                var clientOrderId = JsonConvert.DeserializeObject<NewOrderContext>(operation.ContextJson).ClientOrderId;
+                tasks.Add(batch.HashSetAsync(_key, clientOrderId, operation.Id.ToString()));
+                tasks.Add(batch.HashSetAsync(_key, operation.Id.ToString(), clientOrderId));
+                tasks.Add(batch.KeyExpireAsync(_key, _keyExpirationPeriod));
+
             }
             batch.Execute();
-
+            Task.WhenAll(tasks).GetAwaiter().GetResult();
         }
     }
 }
