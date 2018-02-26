@@ -65,11 +65,11 @@ namespace Lykke.Service.FixGateway.Services
             }
 
             var orderId = Guid.Parse(order.ExternalId);
-            var cachedClientOrderId = await _clientOrderIdProvider.TryGetClientOrderIdByOrderIdAsync(orderId);
-            if (!cachedClientOrderId.hasValue) 
+            var cachedClientOrderId = await _clientOrderIdProvider.FindClientOrderIdByOrderIdAsync(orderId);
+            if (string.IsNullOrEmpty(cachedClientOrderId))
             {
-                // Probably the client created|deleted the order via GUI or HFT. The clientOrderId is required filed so we can't send an response for this 
-                _log.WriteInfo(nameof(HandleSingleOrder), orderId,$"Can't find client order id for {orderId}. It means the client has a parallel session opened via GUI or HFT");
+                // Probably the client created|deleted the order via GUI or HFT. The clientOrderId is required field so we can't send an response for this 
+                _log.WriteInfo(nameof(HandleSingleOrder), orderId, $"Can't find client order id for {orderId}. It means the client has a parallel session opened via GUI or HFT");
                 return;
             }
 
@@ -79,7 +79,7 @@ namespace Lykke.Service.FixGateway.Services
             {
                 foreach (var trade in trades.OrderBy(t => t.Timestamp).Take(trades.Count - 1))
                 {
-                    var partMsg = GetFilledResponse(order, OrdStatus.PARTIALLY_FILLED, cachedClientOrderId.clientOrderId, trade);
+                    var partMsg = GetFilledResponse(order, OrdStatus.PARTIALLY_FILLED, cachedClientOrderId, trade);
                     responses.Add(partMsg);
                 }
             }
@@ -89,20 +89,20 @@ namespace Lykke.Service.FixGateway.Services
                 case OrderStatus.Matched:
                     {
                         var trade = trades.OrderByDescending(t => t.Timestamp).First();
-                        var partMsg = GetFilledResponse(order, OrdStatus.FILLED, cachedClientOrderId.clientOrderId, trade);
+                        var partMsg = GetFilledResponse(order, OrdStatus.FILLED, cachedClientOrderId, trade);
                         responses.Add(partMsg);
                         break;
                     }
                 case OrderStatus.Cancelled:
                     {
-                        var partMsg = GetCancelResponse(order, cachedClientOrderId.clientOrderId);
+                        var partMsg = GetCancelResponse(order, cachedClientOrderId);
                         responses.Add(partMsg);
                         break;
                     }
                 case OrderStatus.Processing:
                     {
                         var trade = trades.OrderByDescending(t => t.Timestamp).First();
-                        var partMsg = GetFilledResponse(order, OrdStatus.PARTIALLY_FILLED, cachedClientOrderId.clientOrderId, trade);
+                        var partMsg = GetFilledResponse(order, OrdStatus.PARTIALLY_FILLED, cachedClientOrderId, trade);
                         responses.Add(partMsg);
                         break;
                     }
@@ -110,7 +110,7 @@ namespace Lykke.Service.FixGateway.Services
                     // Ignore. We have already sent a response from the API
                     break;
                 default:
-                    responses.Add(CreateFailedResponse(order, cachedClientOrderId.clientOrderId));
+                    responses.Add(CreateFailedResponse(order, cachedClientOrderId));
                     break;
             }
 

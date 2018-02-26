@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Lykke.Contracts.Operations;
@@ -42,12 +43,14 @@ namespace Lykke.Service.FixGateway.Services
             {
                 var db = GetDatabase();
                 var batch = db.CreateBatch();
-#pragma warning disable 4014
-                batch.KeyExpireAsync(_key, _keyExpirationPeriod);
-                batch.HashSetAsync(_key, clientOrderId, orderId.ToString());
-                batch.HashSetAsync(_key, orderId.ToString(), clientOrderId);
-#pragma warning restore 4014
+                var tasks = new List<Task>
+                {
+                    batch.HashSetAsync(_key, clientOrderId, orderId.ToString()),
+                    batch.HashSetAsync(_key, orderId.ToString(), clientOrderId),
+                    batch.KeyExpireAsync(_key, _keyExpirationPeriod)
+                };
                 batch.Execute();
+                await Task.WhenAll(tasks);
             }
             catch (Exception)
             {
@@ -68,22 +71,22 @@ namespace Lykke.Service.FixGateway.Services
 
         public async Task RemoveCompletedAsync(Guid orderId)
         {
-            var coid = await TryGetClientOrderIdByOrderIdAsync(orderId);
+            var clientOrderId = await FindClientOrderIdByOrderIdAsync(orderId);
             await _operationsClient.Complete(orderId);
             var db = GetDatabase();
-            if (coid.hasValue)
+            if (!string.IsNullOrEmpty(clientOrderId))
             {
-                await db.HashDeleteAsync(_key, coid.clientOrderId);
+                await db.HashDeleteAsync(_key, clientOrderId);
             }
 
             await db.HashDeleteAsync(_key, orderId.ToString());
         }
 
-        public async Task<(bool hasValue, string clientOrderId)> TryGetClientOrderIdByOrderIdAsync(Guid orderId)
+        public async Task<string> FindClientOrderIdByOrderIdAsync(Guid orderId)
         {
             var db = GetDatabase();
-            var cleintOrdID = await db.HashGetAsync(_key, orderId.ToString());
-            return (cleintOrdID.HasValue, cleintOrdID);
+            var clientOrderId = await db.HashGetAsync(_key, orderId.ToString());
+            return clientOrderId;
         }
 
         public async Task<Guid> GetOrderIdByClientOrderId(string clientOrderId)
@@ -99,19 +102,23 @@ namespace Lykke.Service.FixGateway.Services
 
         public void Start()
         {
-            var operations = _operationsClient.Get(_credentials.ClientId, OperationStatus.Created).GetAwaiter().GetResult().ToArray();
+            var operations = _operationsClient.Get(_credentials.ClientId, OperationStatus.Created).GetAwaiter().GetResult();
             var db = GetDatabase();
-            db.KeyDeleteAsync(_key).GetAwaiter().GetResult();
+            var tasks = new List<Task>();
+
             var batch = db.CreateBatch();
+
+            tasks.Add(db.KeyDeleteAsync(_key));
             foreach (var operation in operations)
             {
-                var coid = JsonConvert.DeserializeObject<NewOrderContext>(operation.ContextJson).ClientOrderId;
-                batch.KeyExpireAsync(_key, _keyExpirationPeriod);
-                batch.HashSetAsync(_key, coid, operation.Id.ToString()); // Do not await here
-                batch.HashSetAsync(_key, operation.Id.ToString(), coid); // Do not await here
+                var clientOrderId = JsonConvert.DeserializeObject<NewOrderContext>(operation.ContextJson).ClientOrderId;
+                tasks.Add(batch.HashSetAsync(_key, clientOrderId, operation.Id.ToString()));
+                tasks.Add(batch.HashSetAsync(_key, operation.Id.ToString(), clientOrderId));
+                tasks.Add(batch.KeyExpireAsync(_key, _keyExpirationPeriod));
+
             }
             batch.Execute();
-
+            Task.WhenAll(tasks).GetAwaiter().GetResult();
         }
     }
 }

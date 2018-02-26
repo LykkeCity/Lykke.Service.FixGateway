@@ -53,8 +53,8 @@ namespace Lykke.Service.FixGateway.Services
             }
 
             var orderId = Guid.Parse(marketOrder.ExternalId);
-            var cachedClientOrderId = await _clientOrderIdProvider.TryGetClientOrderIdByOrderIdAsync(orderId);
-            if (!cachedClientOrderId.hasValue) 
+            var cachedClientOrderId = await _clientOrderIdProvider.FindClientOrderIdByOrderIdAsync(orderId);
+            if (string.IsNullOrEmpty(cachedClientOrderId)) 
             {
                 // Probably the client created|deleted the order via GUI or HFT. The clientOrderId is required filed so we can't send an response for this 
                 _log.WriteInfo(nameof(HandleMarketOrderNotification), orderId,$"Can't find client order id for {orderId}. It means the client has a parallel session opened via GUI or HFT");
@@ -65,11 +65,11 @@ namespace Lykke.Service.FixGateway.Services
 
             if (marketOrder.Status == OrderStatus.Matched || marketOrder.Status == OrderStatus.Cancelled)
             {
-                response = GetSuccessfulMarketOrderResponse(marketOrder, cachedClientOrderId.clientOrderId);
+                response = GetSuccessfulMarketOrderResponse(marketOrder, cachedClientOrderId);
             }
             else
             {
-                response = CreateFailedResponse(marketOrder, cachedClientOrderId.clientOrderId);
+                response = CreateFailedResponse(marketOrder, cachedClientOrderId);
             }
             Send(response);
         }

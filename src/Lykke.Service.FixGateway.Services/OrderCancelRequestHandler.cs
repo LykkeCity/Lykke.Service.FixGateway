@@ -50,7 +50,7 @@ namespace Lykke.Service.FixGateway.Services
                 }
                 var orderId = await _clientOrderIdProvider.GetOrderIdByClientOrderId(request.OrigClOrdID.Obj);
                 var meResponse = await _matchingEngineClient.CancelLimitOrderAsync(orderId.ToString());
-                await CheckResponseAndThrowIfNullAsync(meResponse);
+                CheckResponseAndThrowIfNullAsync(meResponse);
                 Message response;
                 switch (meResponse.Status)
                 {
@@ -76,19 +76,19 @@ namespace Lykke.Service.FixGateway.Services
             catch (Exception ex)
             {
                 var clOrdId = request.ClOrdID.Obj;
-                await _log.WriteWarningAsync(nameof(HandleRequestAsync), $"OrderCancelRequest. Id {clOrdId}", "", ex);
+                _log.WriteWarning(nameof(HandleRequestAsync), $"OrderCancelRequest. Id {clOrdId}", "", ex);
                 var reject = CreateRejectResponse(request, CxlRejReason.OTHER);
                 Send(reject);
             }
         }
 
 
-        private async Task CheckResponseAndThrowIfNullAsync(object response)
+        private  void CheckResponseAndThrowIfNullAsync(object response)
         {
             if (response == null)
             {
                 var exception = new InvalidOperationException("ME not available");
-                await _log.WriteErrorAsync(nameof(NewOrderRequestHandler), nameof(CheckResponseAndThrowIfNullAsync), exception);
+                _log.WriteError(nameof(NewOrderRequestHandler), nameof(CheckResponseAndThrowIfNullAsync), exception);
                 throw exception;
             }
         }
@@ -108,18 +108,13 @@ namespace Lykke.Service.FixGateway.Services
 
         private async Task<bool> ValidateRequestAsync(OrderCancelRequest request)
         {
-            var rejectReason = -1;
             if (!await _clientOrderIdProvider.CheckExistsAsync(request.OrigClOrdID.Obj))
             {
-                rejectReason = CxlRejReason.UNKNOWN_ORDER;
-            }
-
-            if (rejectReason != -1)
-            {
-                var reject = CreateRejectResponse(request, rejectReason);
+                var reject = CreateRejectResponse(request, CxlRejReason.UNKNOWN_ORDER);
                 Send(reject);
                 return false;
             }
+
             return true;
         }
 

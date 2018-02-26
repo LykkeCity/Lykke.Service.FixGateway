@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using QuickFix.Fields;
 using QuickFix.FIX44;

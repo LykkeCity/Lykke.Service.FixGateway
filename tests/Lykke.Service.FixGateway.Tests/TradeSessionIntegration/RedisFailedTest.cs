@@ -19,7 +19,7 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
             var cop = Substitute.For<IClientOrderIdProvider>();
             cop.RemoveCompletedAsync(Arg.Any<Guid>()).ThrowsForAnyArgs(new SocketException());
             cop.CheckExistsAsync(Arg.Any<string>()).ThrowsForAnyArgs(new SocketException());
-            cop.TryGetClientOrderIdByOrderIdAsync(Arg.Any<Guid>()).ThrowsForAnyArgs(new SocketException());
+            cop.FindClientOrderIdByOrderIdAsync(Arg.Any<Guid>()).ThrowsForAnyArgs(new SocketException());
             cop.RegisterNewOrderAsync(Arg.Any<Guid>(), "").ThrowsForAnyArgs(new SocketException());
 
             builder.RegisterInstance(cop)

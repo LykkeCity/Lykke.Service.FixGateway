@@ -93,9 +93,9 @@ namespace Lykke.Service.FixGateway.Tests
 
             await _clientOrderIdProvider.RegisterNewOrderAsync(_orderId, _clientOrderId);
 
-            var actual = await _clientOrderIdProvider.TryGetClientOrderIdByOrderIdAsync(_orderId);
+            var clientOrderId = await _clientOrderIdProvider.FindClientOrderIdByOrderIdAsync(_orderId);
 
-            Assert.That(actual.clientOrderId, Is.EqualTo(_clientOrderId));
+            Assert.That(clientOrderId, Is.EqualTo(_clientOrderId));
         }
 
         [Test]
