@@ -121,8 +121,6 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
             Assert.That(ex.OrdStatus.Obj, Is.EqualTo(OrdStatus.PENDING_NEW));
             Assert.That(ex.ExecType.Obj, Is.EqualTo(ExecType.PENDING_NEW));
 
-
-            Thread.Sleep(1000000);
         }
 
         public static void ShouldCancelLimitOrder(FixClient fixClient, NewOrderSingle orderRequest)
