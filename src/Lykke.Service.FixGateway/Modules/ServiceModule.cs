@@ -1,6 +1,10 @@
 ﻿using System;
 using Autofac;
+using AzureStorage;
+using AzureStorage.Tables;
 using Common.Log;
+using Lykke.Logs;
+using Lykke.Service.FixGateway.AzureRepositories;
 using Lykke.Service.FixGateway.Core.Domain;
 using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
@@ -42,6 +46,10 @@ namespace Lykke.Service.FixGateway.Modules
                 .As<IShutdownManager>()
                 .SingleInstance();
 
+            builder.RegisterType<FixLogEntityRepository>()
+                .As<IFixLogEntityRepository>()
+                .SingleInstance();
+
             builder.RegisterType<QuoteSessionManager>()
                 .WithParameter(TypedParameter.From(_settings.CurrentValue.Sessions.QuoteSession))
                 .As<ISessionManager>()
@@ -54,10 +62,10 @@ namespace Lykke.Service.FixGateway.Modules
                 .InstancePerLifetimeScope();
 
             builder.RegisterType<MarketOrderNotificationsListener>()
-                .InstancePerLifetimeScope();  
-            
+                .InstancePerLifetimeScope();
+
             builder.RegisterType<LimitOrderNotificationsListener>()
-                .InstancePerLifetimeScope(); 
+                .InstancePerLifetimeScope();
 
             builder.RegisterType<OrderCancelRequestHandler>()
                 .InstancePerLifetimeScope();
@@ -85,8 +93,8 @@ namespace Lykke.Service.FixGateway.Modules
             builder.RegisterType<MessagesDispatcher<MarketOrderWithTrades>>()
                 .As<IObservable<MarketOrderWithTrades>>()
                 .AsSelf()
-                .SingleInstance();  
-            
+                .SingleInstance();
+
             builder.RegisterType<MessagesDispatcher<LimitOrdersReport>>()
                 .As<IObservable<LimitOrdersReport>>()
                 .AsSelf()
@@ -95,6 +103,10 @@ namespace Lykke.Service.FixGateway.Modules
             builder.RegisterType<MessagesDispatcher<OrderBook>>()
                 .As<IObservable<OrderBook>>()
                 .AsSelf()
+                .SingleInstance();
+
+            builder.Register(c => AzureTableStorage<FixLogEntity>.Create(_settings.Nested(e => e.Db.FixMessagesLogConnString), "FixGatewayMessagesLog", _log))
+                .As<INoSQLTableStorage<FixLogEntity>>()
                 .SingleInstance();
         }
 
