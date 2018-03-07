@@ -6,6 +6,7 @@ using JetBrains.Annotations;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
+using Lykke.Service.FixGateway.Services.Logging;
 using QuickFix;
 using QuickFix.FIX44;
 using QuickFix.Lykke;
@@ -27,7 +28,7 @@ namespace Lykke.Service.FixGateway.Services
         private readonly ConcurrentDictionary<SessionID, ILifetimeScope> _sessionContainers = new ConcurrentDictionary<SessionID, ILifetimeScope>();
 
 
-        public QuoteSessionManager(SessionSetting setting, Credentials credentials, IAssetsServiceWithCache assetsService, ILifetimeScope lifetimeScope, ILog log)
+        public QuoteSessionManager(SessionSetting setting, Credentials credentials, IAssetsServiceWithCache assetsService, ILifetimeScope lifetimeScope, IFixLogEntityRepository fixLogEntityRepository, ILog log)
         {
             _lifetimeScope = lifetimeScope;
             _credentials = credentials;
@@ -35,8 +36,10 @@ namespace Lykke.Service.FixGateway.Services
 
             var settings = new SessionSettings(setting.GetFixConfigAsReader());
             var storeFactory = new MemoryStoreFactory();
-            var logFactory = new LykkeLogFactory(log, false, false);
-            _socketAcceptor = new ThreadedSocketAcceptor(this, storeFactory, settings, logFactory);
+            var eventLogFactory = new LykkeLogFactory(log, false, false);
+            var messagesLogFactory = new AzureLogFactory(fixLogEntityRepository);
+            var compositeLogFactory = new CompositeLogFactory(new ILogFactory[] { eventLogFactory, messagesLogFactory });
+            _socketAcceptor = new ThreadedSocketAcceptor(this, storeFactory, settings, compositeLogFactory);
 
 
         }

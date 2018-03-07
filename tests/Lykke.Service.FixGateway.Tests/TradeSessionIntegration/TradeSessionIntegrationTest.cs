@@ -121,8 +121,6 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
             Assert.That(ex.OrdStatus.Obj, Is.EqualTo(OrdStatus.PENDING_NEW));
             Assert.That(ex.ExecType.Obj, Is.EqualTo(ExecType.PENDING_NEW));
 
-
-            Thread.Sleep(1000000);
         }
 
         public static void ShouldCancelLimitOrder(FixClient fixClient, NewOrderSingle orderRequest)
@@ -173,7 +171,7 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
             var startTime = DateTime.Now;
             var priceRnd = new Random();
             var volumeRnd = new Random();
-            while ((DateTime.Now - startTime).Seconds < 60)
+            while ((DateTime.Now - startTime).TotalSeconds < 60)
             {
                 var sellPrice = basePrice + 50 + priceRnd.Next(50);
                 var sellLimitOrd = TradeSessionIntegrationBase.CreateNewOrder(Guid.NewGuid().ToString(), false, false, assetId, 0.01m + (decimal)(volumeRnd.NextDouble() * 0.01), sellPrice);
@@ -188,8 +186,8 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
                 fixClient.GetResponse<Message>();
 
 
-                var sellMrkOrder = TradeSessionIntegrationBase.CreateNewOrder(Guid.NewGuid().ToString(), true, false, assetId, 1.11m + (decimal)(volumeRnd.NextDouble() * 0.01));
-                var buyMrkOrder = TradeSessionIntegrationBase.CreateNewOrder(Guid.NewGuid().ToString(), true, true, assetId, 1.11m + (decimal)(volumeRnd.NextDouble() * 0.01));
+                var sellMrkOrder = TradeSessionIntegrationBase.CreateNewOrder(Guid.NewGuid().ToString(), true, false, assetId, 0.11m + (decimal)(volumeRnd.NextDouble() * 0.01));
+                var buyMrkOrder = TradeSessionIntegrationBase.CreateNewOrder(Guid.NewGuid().ToString(), true, true, assetId, 0.11m + (decimal)(volumeRnd.NextDouble() * 0.01));
 
                 fixClient.Send(sellMrkOrder);
                 fixClient.GetResponse<Message>();

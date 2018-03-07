@@ -5,6 +5,7 @@ using Common.Log;
 using JetBrains.Annotations;
 using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
+using Lykke.Service.FixGateway.Services.Logging;
 using QuickFix;
 using QuickFix.FIX44;
 using QuickFix.Lykke;
@@ -23,7 +24,7 @@ namespace Lykke.Service.FixGateway.Services
         private readonly ThreadedSocketAcceptor _socketAcceptor;
         private readonly ConcurrentDictionary<SessionID, ILifetimeScope> _sessionContainers = new ConcurrentDictionary<SessionID, ILifetimeScope>();
 
-        public TradeSessionManager(SessionSetting setting, Credentials credentials, ILifetimeScope lifetimeScope, ILog log)
+        public TradeSessionManager(SessionSetting setting, Credentials credentials, ILifetimeScope lifetimeScope, IFixLogEntityRepository fixLogEntityRepository, ILog log)
         {
             _credentials = credentials;
             _lifetimeScope = lifetimeScope;
@@ -31,8 +32,10 @@ namespace Lykke.Service.FixGateway.Services
 
             var settings = new SessionSettings(setting.GetFixConfigAsReader());
             var storeFactory = new MemoryStoreFactory();
-            var logFactory = new LykkeLogFactory(log, false, false);
-            _socketAcceptor = new ThreadedSocketAcceptor(this, storeFactory, settings, logFactory);
+            var eventLogFactory = new LykkeLogFactory(log, false, false);
+            var messagesLogFactory = new AzureLogFactory(fixLogEntityRepository);
+            var compositeLogFactory = new CompositeLogFactory(new ILogFactory[] { eventLogFactory, messagesLogFactory });
+            _socketAcceptor = new ThreadedSocketAcceptor(this, storeFactory, settings, compositeLogFactory);
 
 
         }
@@ -132,8 +135,8 @@ namespace Lykke.Service.FixGateway.Services
             {
                 _log.WriteWarning("Handle NewOrderSingle", $"SessionID:{sessionID}", "Inconsistent state of the session. Inform developers about this.");
             }
-        }   
-        
+        }
+
         private void HandleRequest(OrderCancelRequest request, SessionID sessionID)
         {
             if (_sessionContainers.TryGetValue(sessionID, out var scope))
