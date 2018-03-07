@@ -76,7 +76,12 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
 
         }
 
+        [Test]
+        public void OrderMonkey()
+        {
+            SharedTest.OrderMonkey(FIXClient, 12000m, "BTCUSD");
 
+        }
     }
 
 
