@@ -34,7 +34,7 @@ namespace Lykke.Service.FixGateway.AzureRepositories
             var item = new FixLogEntity(time, senderCompId, targetCompId, message, direction);
             _logItems.Add(item);
             const int thresholdValue = MaxNoElementsInCache - 10000;
-            if (_logItems.Count > thresholdValue)
+            if (_logItems.Count > thresholdValue && (_logItems.Count - thresholdValue) % 100 == 0)
             {
                 _log.WriteWarning(nameof(WriteLogItem), null, "The log cache is almost full. Azure table performance is to low");
             }
@@ -54,7 +54,14 @@ namespace Lykke.Service.FixGateway.AzureRepositories
             }
             catch (OperationCanceledException)
             {
-                await _tableStorage.InsertAsync(_logItems.ToArray()); //Save the rest if any
+                try
+                {
+                    await _tableStorage.InsertAsync(_logItems.ToArray()); //Save the rest if any
+                }
+                catch (Exception)
+                {
+                    // It is too late to do something
+                }
             }
             catch (Exception e)
             {
