@@ -110,7 +110,7 @@ namespace Lykke.Service.FixGateway.Tests
 
         public T GetResponse<T>() where T : Message
         {
-            for (var i = 0; i < 1000; i++)
+            for (var i = 0; i < 20000; i++)
             {
                 if (_response != null)
                 {
@@ -118,7 +118,7 @@ namespace Lykke.Service.FixGateway.Tests
                     _response = null;
                     return (T)copy;
                 }
-                Thread.Sleep(30);
+                Thread.Sleep(1);
             }
             return null;
         }
