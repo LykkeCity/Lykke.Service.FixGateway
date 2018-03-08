@@ -4,7 +4,6 @@ using System.Reactive.Subjects;
 using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
-using Common;
 using Common.Log;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.Assets.Client.Models;

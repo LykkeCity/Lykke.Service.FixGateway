@@ -11,7 +11,7 @@ using NUnit.Framework;
 
 namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
 {
-    [TestFixture]
+    [TestFixture, Explicit]
     internal class OperationServiceFailedTest : ExternalServiceFailedBase
     {
         protected override void InitContainer(LocalSettingsReloadingManager<AppSettings> appSettings, ContainerBuilder builder)

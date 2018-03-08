@@ -12,8 +12,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Lykke.AzureStorage" Version="5.0.1" />
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="6.8.1.4648" />
+    <PackageReference Include="Lykke.AzureStorage" Version="7.0.2" />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="6.8.2.4717" />
   </ItemGroup>
 
   <ItemGroup>

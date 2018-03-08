@@ -9,7 +9,7 @@ using NUnit.Framework;
 
 namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
 {
-    [TestFixture]
+    [TestFixture, Explicit]
     internal class MatchingEngineFailedTest : ExternalServiceFailedBase
     {
         protected override void InitContainer(LocalSettingsReloadingManager<AppSettings> appSettings, ContainerBuilder builder)
@@ -17,6 +17,8 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
             base.InitContainer(appSettings, builder);
             var ocProxy = Substitute.For<IMatchingEngineClient>();
             ocProxy.HandleMarketOrderAsync(null).ThrowsForAnyArgs<SocketException>();
+            ocProxy.PlaceLimitOrderAsync(null).ThrowsForAnyArgs<SocketException>();
+            ocProxy.CancelLimitOrderAsync(null).ThrowsForAnyArgs<SocketException>();
 
             builder.RegisterInstance(ocProxy)
                 .As<IMatchingEngineClient>();

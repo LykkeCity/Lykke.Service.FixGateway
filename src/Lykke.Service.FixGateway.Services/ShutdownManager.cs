@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
-using Common.Log;
 using JetBrains.Annotations;
 using Lykke.RabbitMqBroker.Subscriber;
 using Lykke.Service.FixGateway.Core.Domain;
@@ -17,21 +16,33 @@ namespace Lykke.Service.FixGateway.Services
     {
         private readonly IEnumerable<ISessionManager> _sessionManagers;
         private readonly RabbitMqSubscriber<OrderBook> _orderBookSubscriber;
+        private readonly RabbitMqSubscriber<OrderBook> _marketOrderSubscriber;
+        private readonly RabbitMqSubscriber<OrderBook> _limitOrderSubscriber;
+        private readonly IFixLogEntityRepository _fixLogEntityRepository;
 
-        public ShutdownManager(IEnumerable<ISessionManager> sessionManagers, RabbitMqSubscriber<OrderBook> orderBookSubscriber)
+        public ShutdownManager(IEnumerable<ISessionManager> sessionManagers,
+            RabbitMqSubscriber<OrderBook> orderBookSubscriber,
+            RabbitMqSubscriber<OrderBook> marketOrderSubscriber,
+            RabbitMqSubscriber<OrderBook> limitOrderSubscriber,
+            IFixLogEntityRepository fixLogEntityRepository)
         {
             _sessionManagers = sessionManagers;
             _orderBookSubscriber = orderBookSubscriber;
+            _marketOrderSubscriber = marketOrderSubscriber;
+            _limitOrderSubscriber = limitOrderSubscriber;
+            _fixLogEntityRepository = fixLogEntityRepository;
         }
 
         public async Task StopAsync()
         {
             _orderBookSubscriber.Stop();
+            _marketOrderSubscriber.Stop();
+            _limitOrderSubscriber.Stop();
             foreach (var manager in _sessionManagers)
             {
                 manager.Stop();
             }
-
+            _fixLogEntityRepository.Stop();
             await Task.CompletedTask;
         }
     }

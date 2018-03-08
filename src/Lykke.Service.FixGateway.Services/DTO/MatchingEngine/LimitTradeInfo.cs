@@ -16,6 +16,6 @@ namespace Lykke.Service.FixGateway.Services.DTO.MatchingEngine
         public string OppositeClientId { get; set; }
         public double OppositeVolume { get; set; }
         public FeeTransfer FeeTransfer { get; set; }
-        public List<Fee> Fees { get; set; }
+        public IReadOnlyCollection<Fee> Fees { get; set; }
     }
 }

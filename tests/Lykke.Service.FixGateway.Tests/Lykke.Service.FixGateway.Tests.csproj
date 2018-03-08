@@ -21,11 +21,11 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="2.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="2.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="2.0.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.5.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.6.0" />
     <PackageReference Include="NSubstitute" Version="3.1.0" />
     <PackageReference Include="NUnit" Version="3.9.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.9.0" />
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="6.8.1.4648" />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="6.8.2.4717" />
     <PackageReference Include="StackExchange.Redis.StrongName" Version="1.2.6" />
     <PackageReference Include="System.Reactive" Version="3.1.1" />
   </ItemGroup>

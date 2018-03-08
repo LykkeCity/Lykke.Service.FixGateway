@@ -43,9 +43,9 @@ namespace Lykke.Service.FixGateway.Tests
         {
             await _clientOrderIdProvider.RegisterNewOrderAsync(_orderId, _clientOrderId);
 
-            var set = await _multiplexer.GetDatabase().SetMembersAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId));
-            Assert.That(set.Length, Is.EqualTo(1));
-            Assert.That(set[0].ToString(), Is.EqualTo(_clientOrderId));
+            var set = await _multiplexer.GetDatabase().HashGetAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId), _clientOrderId);
+            Assert.That(set.HasValue, Is.True);
+            Assert.That(set.ToString(), Is.EqualTo(_orderId.ToString()));
         }
 
         [Test]
@@ -53,12 +53,15 @@ namespace Lykke.Service.FixGateway.Tests
         {
             _operationsClient.Get(Arg.Any<Guid>(), OperationStatus.Created).Returns(Task.FromResult(Enumerable.Empty<OperationModel>()));
 
-            await _multiplexer.GetDatabase().SetAddAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId), "Something");
+            await _multiplexer.GetDatabase().HashSetAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId), new[] { new HashEntry("Name", "Value") });
+
+            var set = await _multiplexer.GetDatabase().KeyExistsAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId));
+            Assert.That(set, Is.True);
 
             _clientOrderIdProvider.Start();
 
-            var set = await _multiplexer.GetDatabase().SetMembersAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId));
-            Assert.That(set.Length, Is.EqualTo(0));
+            set = await _multiplexer.GetDatabase().KeyExistsAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId));
+            Assert.That(set, Is.False);
         }
 
         [Test]
@@ -66,6 +69,7 @@ namespace Lykke.Service.FixGateway.Tests
         {
             var ret = new[] { new OperationModel
             {
+                Id = _orderId,
                 ContextJson = JsonConvert.SerializeObject(new NewOrderContext
                                                 {
                                                     ClientOrderId = _clientOrderId
@@ -78,51 +82,35 @@ namespace Lykke.Service.FixGateway.Tests
 
             _clientOrderIdProvider.Start();
 
-            var set = await _multiplexer.GetDatabase().SetMembersAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId));
-            Assert.That(set.Length, Is.EqualTo(1));
-            Assert.That(set[0].ToString(), Is.EqualTo(_clientOrderId));
+            var set = await _multiplexer.GetDatabase().HashGetAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId), _clientOrderId);
+            Assert.That(set, Is.Not.Null);
+            Assert.That(set.ToString(), Is.EqualTo(_orderId.ToString()));
         }
 
         [Test]
-        public async Task ShouldReturnClientOrderIdFromDb()
+        public async Task ShouldReturnClientOrderIdFromCache()
         {
-            var ret = new OperationModel
-            {
-                ContextJson = JsonConvert.SerializeObject(new NewOrderContext
-                {
-                    ClientOrderId = _clientOrderId
-                }
-                )
-            };
 
-            _operationsClient.Get(Arg.Any<Guid>()).Returns(Task.FromResult(ret));
+            await _clientOrderIdProvider.RegisterNewOrderAsync(_orderId, _clientOrderId);
 
-            var actual = await _clientOrderIdProvider.GetClientOrderIdByOrderIdAsync(_orderId);
+            var clientOrderId = await _clientOrderIdProvider.FindClientOrderIdByOrderIdAsync(_orderId);
 
-            Assert.That(actual, Is.EqualTo(_clientOrderId));
+            Assert.That(clientOrderId, Is.EqualTo(_clientOrderId));
         }
 
         [Test]
         public async Task ShouldDeleteCompletedFromCache()
         {
-            var ret = new OperationModel
-            {
-                ContextJson = JsonConvert.SerializeObject(new NewOrderContext
-                {
-                    ClientOrderId = _clientOrderId
-                }
-                )
-            };
-
-            _operationsClient.Get(Arg.Any<Guid>()).Returns(Task.FromResult(ret));
-            await _multiplexer.GetDatabase().SetAddAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId), _clientOrderId);
+            await _clientOrderIdProvider.RegisterNewOrderAsync(_orderId, _clientOrderId);
 
 
             await _clientOrderIdProvider.RemoveCompletedAsync(_orderId);
 
 
-            var set = await _multiplexer.GetDatabase().SetMembersAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId));
-            Assert.That(set.Length, Is.EqualTo(0));
+            var set1 = await _multiplexer.GetDatabase().HashExistsAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId), _clientOrderId);
+            var set2 = await _multiplexer.GetDatabase().HashExistsAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId), _orderId.ToString());
+            Assert.That(set1, Is.False);
+            Assert.That(set2, Is.False);
         }
 
 

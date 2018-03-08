@@ -5,6 +5,7 @@ using Common.Log;
 using JetBrains.Annotations;
 using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
+using Lykke.Service.FixGateway.Services.Logging;
 using QuickFix;
 using QuickFix.FIX44;
 using QuickFix.Lykke;
@@ -23,7 +24,7 @@ namespace Lykke.Service.FixGateway.Services
         private readonly ThreadedSocketAcceptor _socketAcceptor;
         private readonly ConcurrentDictionary<SessionID, ILifetimeScope> _sessionContainers = new ConcurrentDictionary<SessionID, ILifetimeScope>();
 
-        public TradeSessionManager(SessionSetting setting, Credentials credentials, ILifetimeScope lifetimeScope, ILog log)
+        public TradeSessionManager(SessionSetting setting, Credentials credentials, ILifetimeScope lifetimeScope, IFixLogEntityRepository fixLogEntityRepository, ILog log)
         {
             _credentials = credentials;
             _lifetimeScope = lifetimeScope;
@@ -31,8 +32,10 @@ namespace Lykke.Service.FixGateway.Services
 
             var settings = new SessionSettings(setting.GetFixConfigAsReader());
             var storeFactory = new MemoryStoreFactory();
-            var logFactory = new LykkeLogFactory(log, false, false);
-            _socketAcceptor = new ThreadedSocketAcceptor(this, storeFactory, settings, logFactory);
+            var eventLogFactory = new LykkeLogFactory(log, false, false);
+            var messagesLogFactory = new AzureLogFactory(fixLogEntityRepository);
+            var compositeLogFactory = new CompositeLogFactory(new ILogFactory[] { eventLogFactory, messagesLogFactory });
+            _socketAcceptor = new ThreadedSocketAcceptor(this, storeFactory, settings, compositeLogFactory);
 
 
         }
@@ -111,14 +114,14 @@ namespace Lykke.Service.FixGateway.Services
                 }
             }
 
-            _log.WriteInfo("Session closed", $"SenderCompID: {sessionID.SenderCompID}", "");
+            _log.WriteInfo("Session closed", $"SenderCompID: {sessionID.TargetCompID}", "");
 
         }
 
         public virtual void OnLogon(SessionID sessionID)
         {
             Init(sessionID);
-            _log.WriteInfo("User logged in", $"SenderCompID: {sessionID.SenderCompID}", "");
+            _log.WriteInfo("User logged in", $"SenderCompID: {sessionID.TargetCompID}", "");
         }
 
         private void HandleRequest(NewOrderSingle request, SessionID sessionID)
@@ -134,12 +137,25 @@ namespace Lykke.Service.FixGateway.Services
             }
         }
 
+        private void HandleRequest(OrderCancelRequest request, SessionID sessionID)
+        {
+            if (_sessionContainers.TryGetValue(sessionID, out var scope))
+            {
+                scope.Resolve<OrderCancelRequestHandler>()
+                    .Handle(request);
+            }
+            else
+            {
+                _log.WriteWarning("Handle NewOrderSingle", $"SessionID:{sessionID}", "Inconsistent state of the session. Inform developers about this.");
+            }
+        }
+
         // ReSharper disable once ParameterOnlyUsedForPreconditionCheck.Local
         private void EnsureHasPassword(Logon message, SessionID sessionID)
         {
             if (!string.Equals(_credentials.Password, message.Password.Obj, StringComparison.Ordinal))
             {
-                _log.WriteWarning(nameof(EnsureHasPassword), $"SenderCompID: {sessionID.SenderCompID}", "Incorrect password");
+                _log.WriteWarning(nameof(EnsureHasPassword), $"SenderCompID: {sessionID.TargetCompID}", "Incorrect password");
                 throw new RejectLogon("Incorrect password");
             }
         }
@@ -151,8 +167,12 @@ namespace Lykke.Service.FixGateway.Services
                 var innerScope = _lifetimeScope.BeginLifetimeScope();
                 var op = innerScope.Resolve<IClientOrderIdProvider>();
                 op.Start();
-                innerScope.Resolve<NewOrderRequestHandler>(TypedParameter.From(new SessionState(sessionID)));
-                innerScope.Resolve<MatchingEngineNotificationListener>(TypedParameter.From(new SessionState(sessionID)));
+
+                var sessionState = new SessionState(sessionID);
+                innerScope.Resolve<NewOrderRequestHandler>(TypedParameter.From(sessionState));
+                innerScope.Resolve<MarketOrderNotificationsListener>(TypedParameter.From(sessionState));
+                innerScope.Resolve<LimitOrderNotificationsListener>(TypedParameter.From(sessionState));
+                innerScope.Resolve<OrderCancelRequestHandler>(TypedParameter.From(sessionState));
                 _sessionContainers.TryAdd(sessionID, innerScope);
             }
             catch (Exception ex)

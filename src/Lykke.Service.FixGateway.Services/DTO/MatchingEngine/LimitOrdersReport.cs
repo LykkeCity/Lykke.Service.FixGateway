@@ -1,8 +1,10 @@
-﻿namespace Lykke.Service.FixGateway.Services.DTO.MatchingEngine
+﻿using System.Collections.Generic;
+
+namespace Lykke.Service.FixGateway.Services.DTO.MatchingEngine
 {
     public sealed class LimitOrdersReport
     {
-        public LimitOrderWithTrades[] Orders { get; set; }
+        public IReadOnlyCollection<LimitOrderWithTrades> Orders { get; set; }
 
     }
 }

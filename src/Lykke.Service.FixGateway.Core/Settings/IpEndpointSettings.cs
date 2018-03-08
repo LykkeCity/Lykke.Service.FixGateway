@@ -1,10 +1,13 @@
 ﻿using System.Net;
+using Lykke.SettingsReader.Attributes;
 
 namespace Lykke.Service.FixGateway.Core.Settings
 {
-    public class IpEndpointSettings
+    public sealed class IpEndpointSettings
     {
         public string InternalHost { get; set; }
+
+        [TcpCheck(nameof(Port))]
         public string Host { get; set; }
         public int Port { get; set; }
 
