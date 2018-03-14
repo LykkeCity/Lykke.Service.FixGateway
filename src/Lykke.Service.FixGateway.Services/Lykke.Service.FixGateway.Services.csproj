@@ -17,14 +17,14 @@
 
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="6.2.2" />
-    <PackageReference Include="Lykke.Common" Version="5.0.0" />
+    <PackageReference Include="Lykke.Common" Version="5.1.0" />
     <PackageReference Include="Lykke.Contracts" Version="1.0.43" />
     <PackageReference Include="Lykke.Fix" Version="1.0.9" />
     <PackageReference Include="Lykke.MatchingEngineConnector" Version="3.0.2" />
     <PackageReference Include="Lykke.MatchingEngineConnector.Abstractions" Version="3.0.2" />
     <PackageReference Include="Lykke.RabbitMqBroker" Version="7.0.0" />
     <PackageReference Include="Lykke.Service.Assets.Client" Version="3.3.2" />
-    <PackageReference Include="Lykke.Service.FeeCalculator.Client" Version="1.8.1" />
+    <PackageReference Include="Lykke.Service.FeeCalculator.Client" Version="1.8.2" />
     <PackageReference Include="Lykke.Service.Operations.Client" Version="1.1.2" />
     <PackageReference Include="SonarAnalyzer.CSharp" Version="6.8.2.4717" />
     <PackageReference Include="StackExchange.Redis.StrongName" Version="1.2.6" />
