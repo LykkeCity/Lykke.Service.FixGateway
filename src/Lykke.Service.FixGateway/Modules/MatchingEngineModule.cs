@@ -1,4 +1,6 @@
 ﻿using Autofac;
+using Lykke.MatchingEngine.Connector.Abstractions.Services;
+using Lykke.MatchingEngine.Connector.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
 using Lykke.SettingsReader;
 
@@ -16,7 +18,12 @@ namespace Lykke.Service.FixGateway.Modules
 
         protected override void Load(ContainerBuilder builder)
         {
-            builder.BindMeClient(_settings.CurrentValue.MatchingEngineClient.IpEndpoint.GetClientIpEndPoint(), socketLog: null, ignoreErrors: true);
+            builder.RegisterType<TcpMatchingEngineClient>()
+                .WithParameter(TypedParameter.From(_settings.CurrentValue.MatchingEngineClient.IpEndpoint.GetClientIpEndPoint()))
+                .WithParameter(TypedParameter.From(false))
+                .SingleInstance()
+                .As<IMatchingEngineClient>()
+                .AsSelf();
         }
     }
 }

@@ -21,6 +21,8 @@ namespace Lykke.Service.FixGateway.Services
         private readonly CancellationTokenSource _tokenSource;
         private readonly IClientOrderIdProvider _clientOrderIdProvider;
         private readonly IMatchingEngineClient _matchingEngineClient;
+        private readonly TimeSpan _meRequestTimeout = TimeSpan.FromSeconds(5);
+
 
         public OrderCancelRequestHandler(SessionState sessionState, IFixMessagesSender fixMessagesSender, ILog log, IClientOrderIdProvider clientOrderIdProvider, IMatchingEngineClient matchingEngineClient)
         {
@@ -49,8 +51,14 @@ namespace Lykke.Service.FixGateway.Services
                     return;
                 }
                 var orderId = await _clientOrderIdProvider.GetOrderIdByClientOrderId(request.OrigClOrdID.Obj);
-                var meResponse = await _matchingEngineClient.CancelLimitOrderAsync(orderId.ToString());
-                CheckResponseAndThrowIfNullAsync(meResponse);
+                MeResponseModel meResponse;
+                using (var timeout = new CancellationTokenSource(_meRequestTimeout))
+                using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(_tokenSource.Token, timeout.Token))
+                {
+                    meResponse = await _matchingEngineClient.CancelLimitOrderAsync(orderId.ToString(), linkedTokenSource.Token);
+                    CheckResponseAndThrowIfNullAsync(meResponse);
+                }
+
                 Message response;
                 switch (meResponse.Status)
                 {
@@ -83,7 +91,7 @@ namespace Lykke.Service.FixGateway.Services
         }
 
 
-        private  void CheckResponseAndThrowIfNullAsync(object response)
+        private void CheckResponseAndThrowIfNullAsync(object response)
         {
             if (response == null)
             {

@@ -33,6 +33,7 @@ namespace Lykke.Service.FixGateway.Services
         private readonly IFixMessagesSender _fixMessagesSender;
         private readonly OrderCharacteristicsValidator _orderCharacteristicsValidator;
         private readonly CancellationTokenSource _tokenSource;
+        private readonly TimeSpan _meRequestTimeout = TimeSpan.FromSeconds(5);
 
 
 
@@ -126,11 +127,14 @@ namespace Lykke.Service.FixGateway.Services
                 CancelPreviousOrders = false
             };
 
-            var meResponse = await _matchingEngineClient.PlaceLimitOrderAsync(orderModel);
-            await CheckResponseAndThrowIfNullAsync(meResponse);
+            using (var timeout = new CancellationTokenSource(_meRequestTimeout))
+            using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(_tokenSource.Token, timeout.Token))
+            {
+                var meResponse = await _matchingEngineClient.PlaceLimitOrderAsync(orderModel, linkedTokenSource.Token);
+                await CheckResponseAndThrowIfNullAsync(meResponse);
+                SendResponse(newOrderId, request, meResponse.Status);
+            }
 
-
-            SendResponse(newOrderId, request, meResponse.Status);
 
         }
 
@@ -170,11 +174,13 @@ namespace Lykke.Service.FixGateway.Services
                 ReservedLimitVolume = null
             };
 
-            var meResponse = await _matchingEngineClient.HandleMarketOrderAsync(orderModel);
-            await CheckResponseAndThrowIfNullAsync(meResponse);
-
-
-            SendResponse(newOrderId, request, meResponse.Status);
+            using (var timeout = new CancellationTokenSource(_meRequestTimeout))
+            using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(_tokenSource.Token, timeout.Token))
+            {
+                var meResponse = await _matchingEngineClient.HandleMarketOrderAsync(orderModel, linkedTokenSource.Token);
+                await CheckResponseAndThrowIfNullAsync(meResponse);
+                SendResponse(newOrderId, request, meResponse.Status);
+            }
         }
 
         private async Task CheckResponseAndThrowIfNullAsync(object response)

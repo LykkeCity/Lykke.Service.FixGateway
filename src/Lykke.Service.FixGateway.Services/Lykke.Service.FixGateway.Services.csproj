@@ -17,11 +17,11 @@
 
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="6.2.2" />
-    <PackageReference Include="Lykke.Common" Version="4.5.0" />
+    <PackageReference Include="Lykke.Common" Version="5.0.0" />
     <PackageReference Include="Lykke.Contracts" Version="1.0.43" />
     <PackageReference Include="Lykke.Fix" Version="1.0.9" />
-    <PackageReference Include="Lykke.MatchingEngineConnector" Version="2.2.0" />
-    <PackageReference Include="Lykke.MatchingEngineConnector.Abstractions" Version="2.2.0" />
+    <PackageReference Include="Lykke.MatchingEngineConnector" Version="3.0.2" />
+    <PackageReference Include="Lykke.MatchingEngineConnector.Abstractions" Version="3.0.2" />
     <PackageReference Include="Lykke.RabbitMqBroker" Version="7.0.0" />
     <PackageReference Include="Lykke.Service.Assets.Client" Version="3.3.2" />
     <PackageReference Include="Lykke.Service.FeeCalculator.Client" Version="1.8.1" />
@@ -33,11 +33,5 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Lykke.Service.FixGateway.Core\Lykke.Service.FixGateway.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="Lykke.RabbitMqBroker">
-      <HintPath>C:\Users\Developer\.nuget\packages\lykke.rabbitmqbroker\4.3.1\lib\netstandard2.0\Lykke.RabbitMqBroker.dll</HintPath>
-    </Reference>
   </ItemGroup>
 </Project>

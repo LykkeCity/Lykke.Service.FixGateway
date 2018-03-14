@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
+using Lykke.MatchingEngine.Connector.Services;
 using Lykke.Service.FixGateway.Core.Domain;
 using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Services.DTO.MatchingEngine;
@@ -21,16 +22,19 @@ namespace Lykke.Service.FixGateway.Services
         private readonly MessagesDispatcher<OrderBook> _orderBooksDispatcher;
         private readonly MessagesDispatcher<MarketOrderWithTrades> _marketOrdersDispatcher;
         private readonly MessagesDispatcher<LimitOrdersReport> _limitOrderDispatcher;
+        private readonly TcpMatchingEngineClient _matchingEngineClient;
 
         public StartupManager(IEnumerable<ISessionManager> sessionManagers,
             MessagesDispatcher<OrderBook> orderBooksDispatcher,
             MessagesDispatcher<MarketOrderWithTrades> marketOrdersDispatcher,
-                MessagesDispatcher<LimitOrdersReport> limitOrderDispatcher)
+                MessagesDispatcher<LimitOrdersReport> limitOrderDispatcher,
+            TcpMatchingEngineClient matchingEngineClient)
         {
             _sessionManagers = sessionManagers;
             _orderBooksDispatcher = orderBooksDispatcher;
             _marketOrdersDispatcher = marketOrdersDispatcher;
             _limitOrderDispatcher = limitOrderDispatcher;
+            _matchingEngineClient = matchingEngineClient;
         }
 
         public async Task StartAsync()
@@ -42,7 +46,7 @@ namespace Lykke.Service.FixGateway.Services
             _orderBooksDispatcher.Start();
             _marketOrdersDispatcher.Start();
             _limitOrderDispatcher.Start();
-
+            _matchingEngineClient.Start();
             await Task.CompletedTask;
         }
     }
