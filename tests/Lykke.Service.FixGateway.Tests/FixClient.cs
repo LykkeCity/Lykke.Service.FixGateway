@@ -3,16 +3,20 @@ using System.Threading;
 using Autofac;
 using Common;
 using Common.Log;
+using Lykke.Logging;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
 using QuickFix;
 using QuickFix.Fields;
 using QuickFix.FIX44;
-using QuickFix.Lykke;
 using QuickFix.Transport;
 using Message = QuickFix.Message;
 
+
 namespace Lykke.Service.FixGateway.Tests
 {
+
+
+
     internal class FixClient : IApplication, IStartable, IStopable
     {
         private readonly SocketInitiator _socketInitiator;

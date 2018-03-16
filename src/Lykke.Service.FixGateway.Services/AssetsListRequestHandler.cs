@@ -11,6 +11,7 @@ using Lykke.Service.FixGateway.Core.Services;
 using QuickFix.Fields;
 using QuickFix.FIX44;
 using ILog = Common.Log.ILog;
+using Message = QuickFix.Message;
 
 namespace Lykke.Service.FixGateway.Services
 {
@@ -111,7 +112,7 @@ namespace Lykke.Service.FixGateway.Services
             return true;
         }
 
-        private void Send(QuickFix.Message reject)
+        private void Send(Message reject)
         {
             _fixMessagesSender.Send(reject, _sessionState.SessionID);
         }

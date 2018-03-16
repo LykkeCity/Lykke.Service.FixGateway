@@ -3,14 +3,14 @@ using System.Collections.Concurrent;
 using Autofac;
 using Common.Log;
 using JetBrains.Annotations;
+using Lykke.Logging;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
-using Lykke.Service.FixGateway.Services.Logging;
 using QuickFix;
 using QuickFix.FIX44;
-using QuickFix.Lykke;
 using ILog = Common.Log.ILog;
+using LykkeLogFactory = QuickFix.Lykke.LykkeLogFactory;
 using Message = QuickFix.Message;
 
 namespace Lykke.Service.FixGateway.Services

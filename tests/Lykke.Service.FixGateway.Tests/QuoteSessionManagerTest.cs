@@ -189,7 +189,7 @@ namespace Lykke.Service.FixGateway.Tests
                 }
             });
             Thread.Sleep(10000);
-            var resp = _fixClient.GetResponse<QuickFix.Message>();
+            var resp = _fixClient.GetResponse< QuickFix.Message>();
             stopPublishing = true;
             Assert.That(resp, Is.TypeOf<MarketDataSnapshotFullRefresh>());
         }

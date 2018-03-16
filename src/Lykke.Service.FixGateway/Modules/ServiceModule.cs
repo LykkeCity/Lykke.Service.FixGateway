@@ -1,10 +1,7 @@
 ﻿using System;
 using Autofac;
-using AzureStorage;
-using AzureStorage.Tables;
 using Common.Log;
-using Lykke.Logs;
-using Lykke.Service.FixGateway.AzureRepositories;
+using Lykke.Logging;
 using Lykke.Service.FixGateway.Core.Domain;
 using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
@@ -46,9 +43,7 @@ namespace Lykke.Service.FixGateway.Modules
                 .As<IShutdownManager>()
                 .SingleInstance();
 
-            builder.RegisterType<FixLogEntityRepository>()
-                .As<IFixLogEntityRepository>()
-                .SingleInstance();
+            builder.RegisterFixLogEntityRepository(_settings.Nested(n => n.Db.FixMessagesLogConnString), "FixGatewayMessagesLog");
 
             builder.RegisterType<QuoteSessionManager>()
                 .WithParameter(TypedParameter.From(_settings.CurrentValue.Sessions.QuoteSession))
@@ -104,11 +99,6 @@ namespace Lykke.Service.FixGateway.Modules
                 .As<IObservable<OrderBook>>()
                 .AsSelf()
                 .SingleInstance();
-
-            builder.Register(c => AzureTableStorage<FixLogEntity>.Create(_settings.Nested(e => e.Db.FixMessagesLogConnString), "FixGatewayMessagesLog", _log))
-                .As<INoSQLTableStorage<FixLogEntity>>()
-                .SingleInstance();
         }
-
     }
 }

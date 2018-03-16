@@ -40,13 +40,14 @@
 
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" Version="11.1.0" />
-    <PackageReference Include="Lykke.Common" Version="5.1.0" />
+    <PackageReference Include="Lykke.Common" Version="6.0.0" />
     <PackageReference Include="Lykke.Common.ApiLibrary" Version="1.4.0" />
     <PackageReference Include="Lykke.Fix" Version="1.0.9" />
     <PackageReference Include="Lykke.Logs" Version="3.6.0" />
+    <PackageReference Include="Lykke.QuickFix.Extensions" Version="1.0.2" />
     <PackageReference Include="Lykke.RabbitMqBroker" Version="7.0.0" />
     <PackageReference Include="Lykke.Service.Assets.Client" Version="3.3.2" />
-    <PackageReference Include="Lykke.Service.FeeCalculator.Client" Version="1.8.2" />
+    <PackageReference Include="Lykke.Service.FeeCalculator.Client" Version="1.8.4" />
     <PackageReference Include="Lykke.Service.Session" Version="1.0.33" />
     <PackageReference Include="Lykke.SettingsReader" Version="2.1.0" />
     <PackageReference Include="Lykke.SlackNotification.AzureQueue" Version="2.0.1" />
@@ -63,7 +64,6 @@
   </ItemGroup>
   
   <ItemGroup>
-    <ProjectReference Include="..\Lykke.Service.FixGateway.AzureRepositories\Lykke.Service.FixGateway.AzureRepositories.csproj" />
     <ProjectReference Include="..\Lykke.Service.FixGateway.Core\Lykke.Service.FixGateway.Core.csproj" />
     <ProjectReference Include="..\Lykke.Service.FixGateway.Services\Lykke.Service.FixGateway.Services.csproj" />
   </ItemGroup>
