@@ -8,6 +8,7 @@ using Common.Log;
 using JetBrains.Annotations;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.FixGateway.Core.Domain;
+using Lykke.Service.FixGateway.Core.Extensions;
 using Lykke.Service.FixGateway.Core.Services;
 using QuickFix.Fields;
 using QuickFix.FIX44;
@@ -91,7 +92,7 @@ namespace Lykke.Service.FixGateway.Services
 
         public void Handle(MarketDataRequest request)
         {
-            Task.Run(() => HandleRequestAsync(request), _tokenSource.Token);
+            Task.Factory.StartNew(HandleRequestAsync, request, _tokenSource.Token).Unwrap().GetAwaiter().GetResult();
         }
 
         private void AbortAllSubscriptions()
@@ -101,8 +102,9 @@ namespace Lykke.Service.FixGateway.Services
             _log.WriteInfo(nameof(AbortAllSubscriptions), "", "Cancel all subscriptions after logout");
         }
 
-        private async Task HandleRequestAsync(MarketDataRequest request)
+        private async Task HandleRequestAsync(object state)
         {
+            var request = (MarketDataRequest)state;
             try
             {
                 if (!await ValidateRequestAsync(request))
@@ -207,25 +209,19 @@ namespace Lykke.Service.FixGateway.Services
                 reject = GetFailedResponse(request, MDReqRejReason.UNSUPPORTED_MDENTRYTYPE);
             }
 
-            var allSymbols = (await _assetsServiceWithCache.GetAllAssetPairsAsync(_tokenSource.Token)).Where(ap => !ap.IsDisabled)
+            var allSymbols = (await _assetsServiceWithCache.GetAllEnabledAssetPairsAsync(_tokenSource.Token))
                 .Select(ap => ap.Id)
                 .ToHashSet();
 
-            var hasInvalidSymbol = false;
             for (var i = 1; i <= request.NoRelatedSym.Obj; i++)
             {
                 var symbol = ((MarketDataRequest.NoRelatedSymGroup)request.GetGroup(i, new MarketDataRequest.NoRelatedSymGroup())).Symbol.Obj;
 
                 if (!allSymbols.Contains(symbol))
                 {
-                    hasInvalidSymbol = true;
+                    reject = GetFailedResponse(request, MDReqRejReason.UNKNOWN_SYMBOL);
                     break;
                 }
-            }
-
-            if (hasInvalidSymbol)
-            {
-                reject = GetFailedResponse(request, MDReqRejReason.UNKNOWN_SYMBOL);
             }
 
             if (reject != null)

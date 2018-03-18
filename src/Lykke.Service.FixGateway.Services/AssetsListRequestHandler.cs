@@ -7,6 +7,7 @@ using Common.Log;
 using JetBrains.Annotations;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.Assets.Client.Models;
+using Lykke.Service.FixGateway.Core.Extensions;
 using Lykke.Service.FixGateway.Core.Services;
 using QuickFix.Fields;
 using QuickFix.FIX44;
@@ -37,11 +38,12 @@ namespace Lykke.Service.FixGateway.Services
 
         public void Handle(SecurityListRequest request)
         {
-            Task.Run(() => HandleRequestAsync(request), _tokenSource.Token); //TODO Review me!
+            Task.Factory.StartNew(HandleRequestAsync, request, _tokenSource.Token).Unwrap().GetAwaiter().GetResult();
         }
 
-        private async Task HandleRequestAsync(SecurityListRequest request)
+        private async Task HandleRequestAsync(object state)
         {
+            var request = (SecurityListRequest)state;
             SecurityList response;
             try
             {
@@ -52,7 +54,7 @@ namespace Lykke.Service.FixGateway.Services
                 using (var cts = new CancellationTokenSource(_defaultRequestTimeout))
                 using (var cts2 = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, _tokenSource.Token))
                 {
-                    var assetPairs = await _assetsServiceWithCache.GetAllAssetPairsAsync(cts2.Token);
+                    var assetPairs = await _assetsServiceWithCache.GetAllEnabledAssetPairsAsync(cts2.Token);
                     response = GetSuccessfulResponse(request, assetPairs);
                 }
             }

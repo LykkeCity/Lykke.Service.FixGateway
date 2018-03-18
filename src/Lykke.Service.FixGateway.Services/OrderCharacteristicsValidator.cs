@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Lykke.Service.Assets.Client;
+using Lykke.Service.FixGateway.Core.Extensions;
 using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
 using QuickFix.Fields;
@@ -35,7 +36,7 @@ namespace Lykke.Service.FixGateway.Services
                 reject = OrdRejReason.DUPLICATE_ORDER;
             }
 
-            var allSymbols = (await _assetsServiceWithCache.GetAllAssetPairsAsync(_tokenSource.Token)).Select(a => a.Id).ToHashSet();
+            var allSymbols = (await _assetsServiceWithCache.GetAllEnabledAssetPairsAsync(_tokenSource.Token)).Select(a => a.Id).ToHashSet();
 
             if (!allSymbols.Contains(request.Symbol.Obj))
             {
