@@ -38,12 +38,11 @@ namespace Lykke.Service.FixGateway.Services
 
         public void Handle(SecurityListRequest request)
         {
-            Task.Factory.StartNew(HandleRequestAsync, request, _tokenSource.Token).Unwrap().GetAwaiter().GetResult();
+            HandleRequestAsync(request).GetAwaiter().GetResult();
         }
 
-        private async Task HandleRequestAsync(object state)
+        private async Task HandleRequestAsync(SecurityListRequest request)
         {
-            var request = (SecurityListRequest)state;
             SecurityList response;
             try
             {

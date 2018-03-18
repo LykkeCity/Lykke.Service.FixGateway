@@ -68,12 +68,11 @@ namespace Lykke.Service.FixGateway.Services
 
         public void Handle(NewOrderSingle request)
         {
-            Task.Factory.StartNew(HandleRequestAsync, request, _tokenSource.Token).Unwrap().GetAwaiter().GetResult();
+            HandleRequestAsync(request).GetAwaiter().GetResult();
         }
 
-        private async Task HandleRequestAsync(object input)
+        private async Task HandleRequestAsync(NewOrderSingle request)
         {
-            var request = (NewOrderSingle)input;
             var newOrderId = GenerateOrderId();
             try
             {

@@ -92,7 +92,7 @@ namespace Lykke.Service.FixGateway.Services
 
         public void Handle(MarketDataRequest request)
         {
-            Task.Factory.StartNew(HandleRequestAsync, request, _tokenSource.Token).Unwrap().GetAwaiter().GetResult();
+           HandleRequestAsync(request).GetAwaiter().GetResult();
         }
 
         private void AbortAllSubscriptions()
@@ -102,9 +102,8 @@ namespace Lykke.Service.FixGateway.Services
             _log.WriteInfo(nameof(AbortAllSubscriptions), "", "Cancel all subscriptions after logout");
         }
 
-        private async Task HandleRequestAsync(object state)
+        private async Task HandleRequestAsync(MarketDataRequest request)
         {
-            var request = (MarketDataRequest)state;
             try
             {
                 if (!await ValidateRequestAsync(request))

@@ -112,9 +112,9 @@ namespace Lykke.Service.FixGateway.Tests
             }
         }
 
-        public T GetResponse<T>() where T : Message
+        public T GetResponse<T>(int timeout = 20000) where T : Message
         {
-            for (var i = 0; i < 20000; i++)
+            for (var i = 0; i < timeout; i++)
             {
                 if (_response != null)
                 {

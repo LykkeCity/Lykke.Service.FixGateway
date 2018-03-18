@@ -168,7 +168,7 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
             Assert.That(ex.OrdStatus.Obj, Is.EqualTo(OrdStatus.CANCELED));
             Assert.That(ex.ExecType.Obj, Is.EqualTo(ExecType.CANCELED));
 
-      //      Task.Delay(1000000);
+            //      Task.Delay(1000000);
         }
 
         public static void OrderMonkey(FixClient fixClient, decimal basePrice, string assetId)
@@ -202,6 +202,11 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
 
 
                 //  Thread.Sleep(1000);
+            }
+
+            while (fixClient.GetResponse<Message>(1000) != null)
+            {
+                // Read all messages from the socket
             }
 
         }

@@ -37,13 +37,11 @@ namespace Lykke.Service.FixGateway.Services
 
         public void Handle(OrderCancelRequest request)
         {
-            Task.Factory.StartNew(HandleRequestAsync, request, _tokenSource.Token).Unwrap().GetAwaiter().GetResult();
+            HandleRequestAsync(request).GetAwaiter().GetResult();
         }
 
-        private async Task HandleRequestAsync(object input)
+        private async Task HandleRequestAsync(OrderCancelRequest request)
         {
-            var request = (OrderCancelRequest)input;
-
             try
             {
                 if (!await ValidateRequestAsync(request))

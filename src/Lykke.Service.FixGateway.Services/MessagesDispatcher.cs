@@ -46,7 +46,7 @@ namespace Lykke.Service.FixGateway.Services
                 }
                 catch (Exception ex)
                 {
-                    _log.WriteError(nameof(Subscribe), "", ex);
+                    _log.WriteWarning(nameof(Subscribe), "", "", ex);
                 }
             });
         }
