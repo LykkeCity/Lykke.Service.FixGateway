@@ -35,9 +35,6 @@ namespace Lykke.Service.FixGateway.Modules
                 .As<IHealthService>()
                 .SingleInstance();
 
-            builder.RegisterType<StartupManager>()
-                .As<IStartupManager>()
-                .SingleInstance();
 
             builder.RegisterType<ShutdownManager>()
                 .As<IShutdownManager>()
@@ -52,14 +49,26 @@ namespace Lykke.Service.FixGateway.Modules
 
             builder.RegisterType<MaintenanceModeManager>()
                 .WithParameter(TypedParameter.From(_settings.CurrentValue.MaintenanceMode))
+                .InstancePerLifetimeScope()
                 .As<IMaintenanceModeManager>();
 
 
             builder.RegisterInstance(_settings.CurrentValue.Credentials)
                 .SingleInstance();
 
-            builder.RegisterType<NewOrderRequestHandler>()
-                .InstancePerLifetimeScope();
+
+
+            builder.RegisterType<FixNewOrderRequestValidator>()
+                .As<IFixNewOrderRequestValidator>();
+
+            builder.RegisterType<MarketDataRequestValidator>()
+                .As<IMarketDataRequestValidator>();
+
+            builder.RegisterType<OrderCancelRequestValidator>()
+                .As<IOrderCancelRequestValidator>();
+
+            builder.RegisterType<SecurityListRequestValidator>()
+                .As<ISecurityListRequestValidator>();
 
             builder.RegisterType<MarketOrderNotificationsListener>()
                 .InstancePerLifetimeScope();
@@ -68,17 +77,29 @@ namespace Lykke.Service.FixGateway.Modules
                 .InstancePerLifetimeScope();
 
             builder.RegisterType<OrderCancelRequestHandler>()
+                .As<IOrderCancelRequestHandler>()
                 .InstancePerLifetimeScope();
 
             builder.RegisterType<ClientOrderIdProvider>()
                 .As<IClientOrderIdProvider>()
                 .InstancePerLifetimeScope();
 
-            builder.RegisterType<AssetsListRequestHandler>()
+            builder.RegisterType<SecurityListRequestHandler>()
+                .As<ISecurityListRequestHandler>()
                 .InstancePerLifetimeScope();
 
             builder.RegisterType<MarketDataRequestHandler>()
+                .As<IMarketDataRequestHandler>()
                 .InstancePerLifetimeScope();
+
+            builder.RegisterType<FixMessagesSender>()
+                .As<IFixMessagesSender>()
+                .InstancePerLifetimeScope();
+
+            builder.RegisterType<NewOrderRequestHandler>()
+                .As<INewOrderRequestHandler>()
+                .InstancePerLifetimeScope();
+
 
             builder.RegisterType<TradeSessionManager>()
                 .WithParameter(TypedParameter.From(_settings.CurrentValue.Sessions.TradeSession))
@@ -87,9 +108,6 @@ namespace Lykke.Service.FixGateway.Modules
                 .AsSelf()
                 .SingleInstance();
 
-            builder.RegisterType<FixMessagesSender>()
-                .As<IFixMessagesSender>()
-                .SingleInstance();
 
             builder.RegisterType<MessagesDispatcher<MarketOrderWithTrades>>()
                 .As<IObservable<MarketOrderWithTrades>>()

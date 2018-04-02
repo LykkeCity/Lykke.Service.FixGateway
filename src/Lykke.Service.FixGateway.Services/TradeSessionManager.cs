@@ -19,16 +19,14 @@ namespace Lykke.Service.FixGateway.Services
     {
         private readonly Credentials _credentials;
         private readonly ILifetimeScope _lifetimeScope;
-        private readonly IMaintenanceModeManager _maintenanceModeManager;
         private readonly ILog _log;
         private readonly ThreadedSocketAcceptor _socketAcceptor;
         private readonly ConcurrentDictionary<SessionID, ILifetimeScope> _sessionContainers = new ConcurrentDictionary<SessionID, ILifetimeScope>();
 
-        public TradeSessionManager(SessionSetting setting, Credentials credentials, ILifetimeScope lifetimeScope, IFixLogEntityRepository fixLogEntityRepository, ILog log, IMaintenanceModeManager maintenanceModeManager)
+        public TradeSessionManager(SessionSetting setting, Credentials credentials, ILifetimeScope lifetimeScope, IFixLogEntityRepository fixLogEntityRepository, ILog log)
         {
             _credentials = credentials;
             _lifetimeScope = lifetimeScope;
-            _maintenanceModeManager = maintenanceModeManager;
             _log = log.CreateComponentScope(nameof(TradeSessionManager));
 
             var settings = new SessionSettings(setting.GetFixConfigAsReader());
@@ -41,7 +39,7 @@ namespace Lykke.Service.FixGateway.Services
 
         }
 
-        public void Start()
+        public void Init()
         {
             _socketAcceptor.Start();
         }
@@ -88,10 +86,19 @@ namespace Lykke.Service.FixGateway.Services
 
         public void FromApp(Message message, SessionID sessionID)
         {
-            if (!_maintenanceModeManager.AllowProcessMessages(message, sessionID))
+            if (_sessionContainers.TryGetValue(sessionID, out var scope))
             {
-                return;
+                if (!scope.Resolve<IMaintenanceModeManager>().AllowProcessMessages(message))
+                {
+                    _log.WriteInfo(nameof(FromApp), "", $"Maintenance mode is active. Ignore {message.GetType().Name} request from  {sessionID}");
+                    return;
+                }
             }
+            else
+            {
+                _log.WriteWarning("Handle NewOrderSingle", $"SessionID:{sessionID}", "Inconsistent state of the session. Inform developers about this.");
+            }
+
 
             dynamic msg = message;
             HandleRequest(msg, sessionID);
@@ -135,8 +142,7 @@ namespace Lykke.Service.FixGateway.Services
         {
             if (_sessionContainers.TryGetValue(sessionID, out var scope))
             {
-                scope.Resolve<NewOrderRequestHandler>()
-                    .Handle(request);
+                scope.Resolve<INewOrderRequestHandler>().Handle(request).GetAwaiter().GetResult();
             }
             else
             {
@@ -148,8 +154,7 @@ namespace Lykke.Service.FixGateway.Services
         {
             if (_sessionContainers.TryGetValue(sessionID, out var scope))
             {
-                scope.Resolve<OrderCancelRequestHandler>()
-                    .Handle(request);
+                scope.Resolve<IOrderCancelRequestHandler>().Handle(request).GetAwaiter().GetResult();
             }
             else
             {
@@ -171,15 +176,10 @@ namespace Lykke.Service.FixGateway.Services
         {
             try
             {
-                var innerScope = _lifetimeScope.BeginLifetimeScope();
-                var op = innerScope.Resolve<IClientOrderIdProvider>();
-                op.Start();
-
-                var sessionState = new SessionState(sessionID);
-                innerScope.Resolve<NewOrderRequestHandler>(TypedParameter.From(sessionState));
-                innerScope.Resolve<MarketOrderNotificationsListener>(TypedParameter.From(sessionState));
-                innerScope.Resolve<LimitOrderNotificationsListener>(TypedParameter.From(sessionState));
-                innerScope.Resolve<OrderCancelRequestHandler>(TypedParameter.From(sessionState));
+                var innerScope = _lifetimeScope.BeginLifetimeScope(c => c.RegisterInstance(new SessionState(sessionID)));
+                innerScope.Resolve<IClientOrderIdProvider>().Init();
+                innerScope.Resolve<MarketOrderNotificationsListener>().Init();
+                innerScope.Resolve<LimitOrderNotificationsListener>().Init();
                 _sessionContainers.TryAdd(sessionID, innerScope);
             }
             catch (Exception ex)

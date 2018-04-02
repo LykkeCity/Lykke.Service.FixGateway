@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using Autofac;
 using Common;
 using Common.Log;
 using Lykke.Logging;
+using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
 using QuickFix;
 using QuickFix.Fields;
@@ -17,12 +19,13 @@ namespace Lykke.Service.FixGateway.Tests
 
 
 
-    internal class FixClient : IApplication, IStartable, IStopable
+    internal class FixClient : IApplication, ISupportInit, IStopable
     {
         private readonly SocketInitiator _socketInitiator;
         private SessionID _sessionId;
         private readonly LogToConsole _log;
-        private Message _response;
+        private readonly BlockingCollection<Message> _appMessages = new BlockingCollection<Message>(1);
+        private readonly BlockingCollection<Message> _adminMessages = new BlockingCollection<Message>(1);
 
         public FixClient(string targetCompId = Const.TargetCompId, string senderCompId = Const.SenderCompId, string uri = Const.Uri, int port = Const.Port)
         {
@@ -70,6 +73,11 @@ namespace Lykke.Service.FixGateway.Tests
         public void FromAdmin(Message message, SessionID sessionID)
         {
             _log.WriteInfo("FixClient", "FromAdmin", "");
+            if (message is TestRequest || message is Heartbeat)
+            {
+                return;
+            }
+            _adminMessages.Add(message);
         }
 
         public void ToApp(Message message, SessionID sessionId)
@@ -80,7 +88,7 @@ namespace Lykke.Service.FixGateway.Tests
         public void FromApp(Message message, SessionID sessionID)
         {
             _log.WriteInfo("FixClient", "FromApp", "");
-            _response = message;
+            _appMessages.Add(message);
         }
 
         public void OnCreate(SessionID sessionID)
@@ -114,20 +122,17 @@ namespace Lykke.Service.FixGateway.Tests
 
         public T GetResponse<T>(int timeout = 20000) where T : Message
         {
-            for (var i = 0; i < timeout; i++)
-            {
-                if (_response != null)
-                {
-                    var copy = _response;
-                    _response = null;
-                    return (T)copy;
-                }
-                Thread.Sleep(1);
-            }
-            return null;
+            _appMessages.TryTake(out var message, TimeSpan.FromMilliseconds(timeout));
+            return (T)message;
+        }  
+        
+        public T GetAdminResponse<T>(int timeout = 2000) where T : Message
+        {
+            _adminMessages.TryTake(out var message, TimeSpan.FromMilliseconds(timeout));
+            return (T)message;
         }
 
-        public void Start()
+        public void Init()
         {
             _socketInitiator.Start();
             for (var i = 0; i < 1000; i++)

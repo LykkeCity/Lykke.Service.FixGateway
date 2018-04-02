@@ -1,7 +1,10 @@
-﻿using Lykke.SettingsReader.Attributes;
+﻿using JetBrains.Annotations;
+
+using Lykke.SettingsReader.Attributes;
 
 namespace Lykke.Service.FixGateway.Core.Settings.ServiceSettings
 {
+    [UsedImplicitly(ImplicitUseTargetFlags.Members)]
     public sealed class FixGatewaySettings
     {
         
@@ -11,6 +14,5 @@ namespace Lykke.Service.FixGateway.Core.Settings.ServiceSettings
         public Credentials Credentials { get; set; }
         public DbSettings Db { get; set; }
         public Sessions Sessions { get; set; }
-        public RabbitMqLykkeConfiguration RabbitMq { get; set; }
     }
 }

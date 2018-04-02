@@ -22,10 +22,11 @@ namespace Lykke.Service.FixGateway.Services
         private readonly IFixLogEntityRepository _fixLogEntityRepository;
 
         public ShutdownManager(IEnumerable<ISessionManager> sessionManagers,
-            RabbitMqSubscriber<OrderBook> orderBookSubscriber,
             RabbitMqSubscriber<OrderBook> marketOrderSubscriber,
             RabbitMqSubscriber<OrderBook> limitOrderSubscriber,
-            IFixLogEntityRepository fixLogEntityRepository)
+            IFixLogEntityRepository fixLogEntityRepository,
+            RabbitMqSubscriber<OrderBook> orderBookSubscriber = null
+            )
         {
             _sessionManagers = sessionManagers;
             _orderBookSubscriber = orderBookSubscriber;
@@ -36,7 +37,7 @@ namespace Lykke.Service.FixGateway.Services
 
         public async Task StopAsync()
         {
-            _orderBookSubscriber.Stop();
+            _orderBookSubscriber?.Stop();
             _marketOrderSubscriber.Stop();
             _limitOrderSubscriber.Stop();
             foreach (var manager in _sessionManagers)

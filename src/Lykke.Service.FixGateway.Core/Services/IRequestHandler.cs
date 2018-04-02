@@ -1,10 +1,11 @@
 ﻿using System;
+using System.Threading.Tasks;
 using QuickFix;
 
 namespace Lykke.Service.FixGateway.Core.Services
 {
     public interface IRequestHandler<in T> : IDisposable where T : Message
     {
-        void Handle(T request);
+        Task Handle(T request);
     }
 }

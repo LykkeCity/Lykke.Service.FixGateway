@@ -2,14 +2,15 @@
 using System.Threading;
 using System.Threading.Tasks;
 using AutoMapper;
+using Common.Log;
 using JetBrains.Annotations;
 using Lykke.MatchingEngine.Connector.Abstractions.Models;
 using Lykke.MatchingEngine.Connector.Abstractions.Services;
-using Lykke.Service.Assets.Client;
 using Lykke.Service.FeeCalculator.Client;
 using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
 using Lykke.Service.FixGateway.Services.DTO.MatchingEngine;
+using Lykke.Service.FixGateway.Services.Extensions;
 using QuickFix.Fields;
 using QuickFix.FIX44;
 using ILog = Common.Log.ILog;
@@ -19,9 +20,9 @@ using OrderAction = Lykke.Service.FixGateway.Core.Domain.OrderAction;
 namespace Lykke.Service.FixGateway.Services
 {
     [UsedImplicitly]
-    public sealed class NewOrderRequestHandler : IRequestHandler<NewOrderSingle>
+    public sealed class NewOrderRequestHandler : INewOrderRequestHandler
     {
-        private readonly IAssetsServiceWithCache _assetsServiceWithCache;
+        private readonly IAssetsService _assetsService;
         private readonly ILog _log;
         private readonly IFeeCalculatorClient _feeCalculatorClient;
         private readonly IMatchingEngineClient _matchingEngineClient;
@@ -31,7 +32,7 @@ namespace Lykke.Service.FixGateway.Services
         private readonly FeeSettings _feeSettings;
         private readonly SessionState _sessionState;
         private readonly IFixMessagesSender _fixMessagesSender;
-        private readonly OrderCharacteristicsValidator _orderCharacteristicsValidator;
+        private readonly IFixNewOrderRequestValidator _newOrderRequestValidator;
         private readonly CancellationTokenSource _tokenSource;
         private readonly TimeSpan _meRequestTimeout = TimeSpan.FromSeconds(5);
 
@@ -42,33 +43,35 @@ namespace Lykke.Service.FixGateway.Services
             IFeeCalculatorClient feeCalculatorClient,
             IMatchingEngineClient matchingEngineClient,
             IClientOrderIdProvider clientOrderIdProvider,
-            IAssetsServiceWithCache assetsService,
+            IAssetsService assetsService,
             IMapper mapper,
             Credentials credentials,
             FeeSettings feeSettings,
             SessionState sessionState,
-            IFixMessagesSender fixMessagesSender)
+            IFixMessagesSender fixMessagesSender,
+            IFixNewOrderRequestValidator newOrderRequestValidator)
         {
             _log = log;
             _feeCalculatorClient = feeCalculatorClient;
             _matchingEngineClient = matchingEngineClient;
             _clientOrderIdProvider = clientOrderIdProvider;
-            _assetsServiceWithCache = assetsService;
+            _assetsService = assetsService;
             _mapper = mapper;
             _credentials = credentials;
             _feeSettings = feeSettings;
             _sessionState = sessionState;
             _fixMessagesSender = fixMessagesSender;
-            _orderCharacteristicsValidator = new OrderCharacteristicsValidator(clientOrderIdProvider, assetsService, credentials);
+            _newOrderRequestValidator = newOrderRequestValidator;
+
             _tokenSource = new CancellationTokenSource();
 
         }
 
 
 
-        public void Handle(NewOrderSingle request)
+        public Task Handle(NewOrderSingle request)
         {
-            HandleRequestAsync(request).GetAwaiter().GetResult();
+            return HandleRequestAsync(request);
         }
 
         private async Task HandleRequestAsync(NewOrderSingle request)
@@ -76,7 +79,7 @@ namespace Lykke.Service.FixGateway.Services
             var newOrderId = GenerateOrderId();
             try
             {
-                if (!await ValidateRequestAsync(newOrderId, request))
+                if (!await _newOrderRequestValidator.ValidateAsync(request))
                 {
                     return;
                 }
@@ -94,8 +97,9 @@ namespace Lykke.Service.FixGateway.Services
             }
             catch (Exception ex)
             {
-                await _log.WriteWarningAsync(nameof(HandleRequestAsync), $"NewOrederRequest. Id {newOrderId}", "", ex);
-                var reject = CreateRejectResponse(newOrderId, request, OrdRejReason.OTHER);
+                var errorCode = Guid.NewGuid();
+                _log.WriteWarning(nameof(HandleRequestAsync), "", $"NewOrederRequest. Id: {newOrderId}. NewOrderSingle.ClOrdID: {request.ClOrdID}. Error code: {errorCode}", ex);
+                var reject = new Reject().CreateReject(request, errorCode);
                 Send(reject);
             }
         }
@@ -150,7 +154,7 @@ namespace Lykke.Service.FixGateway.Services
                 case MessageStatus.Duplicate:
                 case MessageStatus.Runtime:
                     var rejectReason = _mapper.Map<OrdRejReason>(status);
-                    var reject = CreateRejectResponse(newOrderId, request, rejectReason, status.ToString());
+                    var reject = new ExecutionReport().CreateReject(newOrderId, request, _sessionState.NextOrderReportId.ToString(), rejectReason.Obj, status.ToString());
                     Send(reject);
                     break;
             }
@@ -194,7 +198,7 @@ namespace Lykke.Service.FixGateway.Services
 
         private async Task<MarketOrderFeeModel> GetMarketOrderFeeAsync(string assetPairId, OrderAction orderAction)
         {
-            var assetPair = await _assetsServiceWithCache.TryGetAssetPairAsync(assetPairId);
+            var assetPair = await _assetsService.TryGetAssetPairAsync(assetPairId);
             var fee = await _feeCalculatorClient.GetMarketOrderAssetFee(_credentials.ClientId.ToString(), assetPairId, assetPair?.BaseAssetId, _mapper.Map<FeeCalculator.AutorestClient.Models.OrderAction>(orderAction));
 
             return new MarketOrderFeeModel
@@ -208,7 +212,7 @@ namespace Lykke.Service.FixGateway.Services
 
         private async Task<LimitOrderFeeModel> GetLimitOrderFeeAsync(string assetPairId, OrderAction orderAction)
         {
-            var assetPair = await _assetsServiceWithCache.TryGetAssetPairAsync(assetPairId);
+            var assetPair = await _assetsService.TryGetAssetPairAsync(assetPairId);
             var fee = await _feeCalculatorClient.GetLimitOrderFees(_credentials.ClientId.ToString(), assetPairId, assetPair?.BaseAssetId, _mapper.Map<FeeCalculator.AutorestClient.Models.OrderAction>(orderAction));
 
             return new LimitOrderFeeModel
@@ -222,22 +226,11 @@ namespace Lykke.Service.FixGateway.Services
         }
 
 
-        private async Task<bool> ValidateRequestAsync(Guid newOrderId, NewOrderSingle request)
-        {
-            var rejectReason = await _orderCharacteristicsValidator.ValidateRequestAsync(request);
-            if (rejectReason != null)
-            {
-                var reject = CreateRejectResponse(newOrderId, request, rejectReason);
-                Send(reject);
-                return false;
-            }
-            return true;
-        }
 
 
         private void Send(Message message)
         {
-            _fixMessagesSender.Send(message, _sessionState.SessionID);
+            _fixMessagesSender.Send(message);
         }
 
         private Message CreteAckResponse(Guid newOrderId, NewOrderSingle request)
@@ -262,36 +255,7 @@ namespace Lykke.Service.FixGateway.Services
             return ack;
         }
 
-        private Message CreateRejectResponse(Guid newOrderId, NewOrderSingle request, OrdRejReason rejectReason, string rejectDescription = null)
-        {
-            return CreateRejectResponse(newOrderId, request, rejectReason.Obj, rejectDescription);
-        }
 
-        private Message CreateRejectResponse(Guid newOrderId, NewOrderSingle request, int rejectReason, string rejectDescription = null)
-        {
-            var reject = new ExecutionReport
-            {
-                OrderID = new OrderID(newOrderId.ToString()),
-                ClOrdID = new ClOrdID(request.ClOrdID.Obj),
-                ExecID = new ExecID(_sessionState.NextOrderReportId.ToString()),
-                OrdStatus = new OrdStatus(OrdStatus.REJECTED),
-                ExecType = new ExecType(ExecType.REJECTED),
-                Symbol = new Symbol(request.Symbol.Obj),
-                OrderQty = new OrderQty(request.OrderQty.Obj),
-                OrdType = new OrdType(request.OrdType.Obj),
-                TimeInForce = new TimeInForce(request.TimeInForce.Obj),
-                LeavesQty = new LeavesQty(0),
-                CumQty = new CumQty(0),
-                AvgPx = new AvgPx(0),
-                Side = new Side(request.Side.Obj),
-                OrdRejReason = new OrdRejReason(rejectReason)
-            };
-            if (rejectDescription != null)
-            {
-                reject.Text = new Text(rejectDescription);
-            }
-            return reject;
-        }
 
         public void Dispose()
         {

@@ -4,6 +4,7 @@ using System.Threading;
 using Autofac;
 using Common;
 using Common.Log;
+using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
 using QuickFix;
 using QuickFix.Fields;
@@ -14,7 +15,7 @@ using Message = QuickFix.Message;
 
 namespace Lykke.Service.FixGateway.TestClient
 {
-    internal class FixClient : IApplication, IStartable, IStopable
+    internal class FixClient : IApplication, ISupportInit, IStopable
     {
         private readonly string _password;
         private readonly SocketInitiator _socketInitiator;
@@ -108,7 +109,7 @@ namespace Lykke.Service.FixGateway.TestClient
             return null;
         }
 
-        public void Start()
+        public void Init()
         {
             _socketInitiator.Start();
             for (var i = 0; i < 10000; i++)

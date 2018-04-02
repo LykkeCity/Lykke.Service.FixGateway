@@ -1,8 +1,11 @@
 ﻿using System;
 using AutoMapper;
+using Lykke.MarginTrading.Client.AutorestClient.Models;
+using Lykke.MatchingEngine.Connector.Abstractions.Models;
 using Lykke.Service.FixGateway.Core.Domain;
 using Lykke.Service.FixGateway.Services.DTO.MatchingEngine;
 using QuickFix.Fields;
+using OrderAction = Lykke.Service.FixGateway.Core.Domain.OrderAction;
 
 namespace Lykke.Service.FixGateway.Services.Mappings
 {
@@ -33,6 +36,22 @@ namespace Lykke.Service.FixGateway.Services.Mappings
                         return new Side(Side.SELL);
                     default:
                         throw new ArgumentException(nameof(action));
+                }
+            });   
+            
+            CreateMap<MeStatusCodes, CxlRejReason>().ConvertUsing((status, side) =>
+            {
+                switch (status)
+                {
+                    case MeStatusCodes.AlreadyProcessed:
+                        return new CxlRejReason(CxlRejReason.ALREADY_PENDING);
+                    case MeStatusCodes.NotFound:
+                        return new CxlRejReason(CxlRejReason.UNKNOWN_ORDER);    
+                    case MeStatusCodes.Runtime:
+                        return new CxlRejReason(CxlRejReason.OTHER);
+
+                    default:
+                        throw new InvalidOperationException($"Unexpected ME status {status}");
                 }
             });
 
@@ -124,6 +143,8 @@ namespace Lykke.Service.FixGateway.Services.Mappings
             CreateMap<FeeCalculator.AutorestClient.Models.OrderAction, OrderAction>();
             CreateMap<OrderAction, MatchingEngine.Connector.Abstractions.Models.OrderAction>();
             CreateMap<MatchingEngine.Connector.Abstractions.Models.OrderAction, OrderAction>();
+            CreateMap<Assets.Client.Models.AssetPair, AssetPair>().ConstructUsing(spotPair => new AssetPair(spotPair.Id, spotPair.BaseAssetId, spotPair.QuotingAssetId, spotPair.Accuracy));
+            CreateMap<AssetPairBackendContract, AssetPair>().ConstructUsing(spotPair => new AssetPair(spotPair.Id, spotPair.BaseAssetId, spotPair.QuoteAssetId, spotPair.Accuracy));
         }
     }
 }

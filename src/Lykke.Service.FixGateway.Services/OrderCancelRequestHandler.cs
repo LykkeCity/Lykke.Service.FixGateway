@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using AutoMapper;
 using Common.Log;
 using JetBrains.Annotations;
 using Lykke.MatchingEngine.Connector.Abstractions.Models;
 using Lykke.MatchingEngine.Connector.Abstractions.Services;
 using Lykke.Service.FixGateway.Core.Services;
+using Lykke.Service.FixGateway.Services.Extensions;
 using QuickFix.Fields;
 using QuickFix.FIX44;
 using Message = QuickFix.Message;
@@ -13,7 +15,7 @@ using Message = QuickFix.Message;
 namespace Lykke.Service.FixGateway.Services
 {
     [UsedImplicitly]
-    public sealed class OrderCancelRequestHandler : IRequestHandler<OrderCancelRequest>
+    public sealed class OrderCancelRequestHandler : IOrderCancelRequestHandler
     {
         private readonly SessionState _sessionState;
         private readonly IFixMessagesSender _fixMessagesSender;
@@ -21,30 +23,34 @@ namespace Lykke.Service.FixGateway.Services
         private readonly CancellationTokenSource _tokenSource;
         private readonly IClientOrderIdProvider _clientOrderIdProvider;
         private readonly IMatchingEngineClient _matchingEngineClient;
+        private readonly IOrderCancelRequestValidator _requestValidator;
+        private readonly IMapper _mapper;
         private readonly TimeSpan _meRequestTimeout = TimeSpan.FromSeconds(5);
 
 
-        public OrderCancelRequestHandler(SessionState sessionState, IFixMessagesSender fixMessagesSender, ILog log, IClientOrderIdProvider clientOrderIdProvider, IMatchingEngineClient matchingEngineClient)
+        public OrderCancelRequestHandler(SessionState sessionState, IFixMessagesSender fixMessagesSender, ILog log, IClientOrderIdProvider clientOrderIdProvider, IMatchingEngineClient matchingEngineClient, IOrderCancelRequestValidator requestValidator, IMapper mapper)
         {
             _sessionState = sessionState;
             _fixMessagesSender = fixMessagesSender;
             _log = log;
             _clientOrderIdProvider = clientOrderIdProvider;
             _matchingEngineClient = matchingEngineClient;
+            _requestValidator = requestValidator;
+            _mapper = mapper;
             _tokenSource = new CancellationTokenSource();
         }
 
 
-        public void Handle(OrderCancelRequest request)
+        public Task Handle(OrderCancelRequest request)
         {
-            HandleRequestAsync(request).GetAwaiter().GetResult();
+            return HandleRequestAsync(request);
         }
 
         private async Task HandleRequestAsync(OrderCancelRequest request)
         {
             try
             {
-                if (!await ValidateRequestAsync(request))
+                if (!await _requestValidator.ValidateAsync(request))
                 {
                     return;
                 }
@@ -64,13 +70,9 @@ namespace Lykke.Service.FixGateway.Services
                         response = CreteAckResponse(request);
                         break;
                     case MeStatusCodes.AlreadyProcessed:
-                        response = CreateRejectResponse(request, CxlRejReason.ALREADY_PENDING);
-                        break;
                     case MeStatusCodes.NotFound:
-                        response = CreateRejectResponse(request, CxlRejReason.UNKNOWN_ORDER);
-                        break;
                     case MeStatusCodes.Runtime:
-                        response = CreateRejectResponse(request, CxlRejReason.OTHER);
+                        response = new OrderCancelReject().CreateReject(request, _mapper.Map<CxlRejReason>(meResponse.Status));
                         break;
                     default:
                         throw new InvalidOperationException($"Unexpected ME status {meResponse.Status}");
@@ -82,8 +84,9 @@ namespace Lykke.Service.FixGateway.Services
             catch (Exception ex)
             {
                 var clOrdId = request.ClOrdID.Obj;
-                _log.WriteWarning(nameof(HandleRequestAsync), $"OrderCancelRequest. Id {clOrdId}", "", ex);
-                var reject = CreateRejectResponse(request, CxlRejReason.OTHER);
+                var errorCode = Guid.NewGuid();
+                _log.WriteWarning(nameof(HandleRequestAsync), "", $"OrderCancelRequest.ClOrdID: {clOrdId}. Error code: {errorCode}", ex);
+                var reject = new Reject().CreateReject(request, errorCode);
                 Send(reject);
             }
         }
@@ -108,21 +111,9 @@ namespace Lykke.Service.FixGateway.Services
 
         private void Send(Message message)
         {
-            _fixMessagesSender.Send(message, _sessionState.SessionID);
+            _fixMessagesSender.Send(message);
         }
 
-
-        private async Task<bool> ValidateRequestAsync(OrderCancelRequest request)
-        {
-            if (!await _clientOrderIdProvider.CheckExistsAsync(request.OrigClOrdID.Obj))
-            {
-                var reject = CreateRejectResponse(request, CxlRejReason.UNKNOWN_ORDER);
-                Send(reject);
-                return false;
-            }
-
-            return true;
-        }
 
         private Message CreteAckResponse(OrderCancelRequest request)
         {
@@ -144,24 +135,6 @@ namespace Lykke.Service.FixGateway.Services
             return ack;
         }
 
-        private Message CreateRejectResponse(OrderCancelRequest request, int rejectReason, string rejectDescription = null)
-        {
-            var ordId = rejectReason == CxlRejReason.UNKNOWN_ORDER ? "NONE" : Guid.NewGuid().ToString();
-            var reject = new OrderCancelReject
-            {
-                OrderID = new OrderID(ordId),
-                OrigClOrdID = new OrigClOrdID(request.OrigClOrdID.Obj),
-                ClOrdID = new ClOrdID(request.ClOrdID.Obj),
-                OrdStatus = new OrdStatus(OrdStatus.REJECTED),
-                CxlRejReason = new CxlRejReason(rejectReason),
-                CxlRejResponseTo = new CxlRejResponseTo(CxlRejResponseTo.ORDER_CANCEL_REQUEST)
 
-            };
-            if (rejectDescription != null)
-            {
-                reject.Text = new Text(rejectDescription);
-            }
-            return reject;
-        }
     }
 }

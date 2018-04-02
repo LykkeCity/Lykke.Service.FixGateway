@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Autofac;
 using AutoMapper;
 using Common.Log;
 using JetBrains.Annotations;
@@ -15,15 +16,16 @@ using OrderStatus = Lykke.Service.FixGateway.Services.DTO.MatchingEngine.OrderSt
 namespace Lykke.Service.FixGateway.Services
 {
     [UsedImplicitly]
-    public sealed class MarketOrderNotificationsListener : IDisposable
+    public sealed class MarketOrderNotificationsListener : IDisposable, ISupportInit
     {
         private readonly IClientOrderIdProvider _clientOrderIdProvider;
+        private readonly IObservable<MarketOrderWithTrades> _marketOrderSubscriber;
         private readonly SessionState _sessionState;
         private readonly IMapper _mapper;
         private readonly IFixMessagesSender _fixMessagesSender;
         private readonly ILog _log;
         private readonly string _clientId;
-        private readonly IDisposable _ordersSubscription;
+        private  IDisposable _ordersSubscription;
 
         public MarketOrderNotificationsListener(
             Credentials credentials,
@@ -35,12 +37,12 @@ namespace Lykke.Service.FixGateway.Services
             ILog log)
         {
             _clientOrderIdProvider = clientOrderIdProvider;
+            _marketOrderSubscriber = marketOrderSubscriber;
             _sessionState = sessionState;
             _mapper = mapper;
             _fixMessagesSender = fixMessagesSender;
             _log = log.CreateComponentScope(nameof(MarketOrderNotificationsListener));
             _clientId = credentials.ClientId.ToString();
-            _ordersSubscription = marketOrderSubscriber.Subscribe(async trades => await HandleMarketOrderNotification(trades));
         }
 
         private async Task HandleMarketOrderNotification(MarketOrderWithTrades marketOrderWithTrades)
@@ -128,12 +130,17 @@ namespace Lykke.Service.FixGateway.Services
 
         private void Send(Message message)
         {
-            _fixMessagesSender.Send(message, _sessionState.SessionID);
+            _fixMessagesSender.Send(message);
         }
 
         public void Dispose()
         {
-            _ordersSubscription.Dispose();
+            _ordersSubscription?.Dispose();
+        }
+
+        public void Init()
+        {
+            _ordersSubscription = _marketOrderSubscriber.Subscribe(async trades => await HandleMarketOrderNotification(trades));
         }
     }
 }

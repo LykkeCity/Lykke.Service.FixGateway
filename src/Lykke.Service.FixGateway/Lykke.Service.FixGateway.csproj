@@ -64,6 +64,7 @@
   </ItemGroup>
   
   <ItemGroup>
+    <ProjectReference Include="..\Lykke.MarginTrading.Client\Lykke.MarginTrading.Client.csproj" />
     <ProjectReference Include="..\Lykke.Service.FixGateway.Core\Lykke.Service.FixGateway.Core.csproj" />
     <ProjectReference Include="..\Lykke.Service.FixGateway.Services\Lykke.Service.FixGateway.Services.csproj" />
   </ItemGroup>

@@ -1,10 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
-using Lykke.MatchingEngine.Connector.Services;
-using Lykke.Service.FixGateway.Core.Domain;
 using Lykke.Service.FixGateway.Core.Services;
-using Lykke.Service.FixGateway.Services.DTO.MatchingEngine;
 
 namespace Lykke.Service.FixGateway.Services
 {
@@ -12,42 +9,26 @@ namespace Lykke.Service.FixGateway.Services
     // but the only way. If this is your case, use this class to manage startup.
     // For example, sometimes some state should be restored before any periodical handler will be started, 
     // or any incoming message will be processed and so on.
-    // Do not forget to remove As<IStartable>() and AutoActivate() from DI registartions of services, 
+    // Do not forget to remove As<ISupportInit>() and AutoActivate() from DI registartions of services, 
     // which you want to startup explicitly.
 
     [UsedImplicitly]
-    public sealed class StartupManager : IStartupManager
+    public abstract class StartupManager : IStartupManager
     {
         private readonly IEnumerable<ISessionManager> _sessionManagers;
-        private readonly MessagesDispatcher<OrderBook> _orderBooksDispatcher;
-        private readonly MessagesDispatcher<MarketOrderWithTrades> _marketOrdersDispatcher;
-        private readonly MessagesDispatcher<LimitOrdersReport> _limitOrderDispatcher;
-        private readonly TcpMatchingEngineClient _matchingEngineClient;
 
-        public StartupManager(IEnumerable<ISessionManager> sessionManagers,
-            MessagesDispatcher<OrderBook> orderBooksDispatcher,
-            MessagesDispatcher<MarketOrderWithTrades> marketOrdersDispatcher,
-                MessagesDispatcher<LimitOrdersReport> limitOrderDispatcher,
-            TcpMatchingEngineClient matchingEngineClient)
+        protected StartupManager(IEnumerable<ISessionManager> sessionManagers)
         {
             _sessionManagers = sessionManagers;
-            _orderBooksDispatcher = orderBooksDispatcher;
-            _marketOrdersDispatcher = marketOrdersDispatcher;
-            _limitOrderDispatcher = limitOrderDispatcher;
-            _matchingEngineClient = matchingEngineClient;
         }
 
-        public async Task StartAsync()
+        public virtual Task StartAsync()
         {
             foreach (var manager in _sessionManagers)
             {
-                manager.Start();
+                manager.Init();
             }
-            _orderBooksDispatcher.Start();
-            _marketOrdersDispatcher.Start();
-            _limitOrderDispatcher.Start();
-            _matchingEngineClient.Start();
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }
     }
 }

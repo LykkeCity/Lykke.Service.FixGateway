@@ -98,7 +98,7 @@ namespace Lykke.Service.FixGateway.Services
             return Guid.Parse(ordId);
         }
 
-        public void Start()
+        public void Init()
         {
             var operations = _operationsClient.Get(_credentials.ClientId, Operations.Contracts.OperationStatus.Created).GetAwaiter().GetResult();
             var db = GetDatabase();

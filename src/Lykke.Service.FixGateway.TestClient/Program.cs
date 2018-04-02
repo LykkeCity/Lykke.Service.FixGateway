@@ -33,11 +33,11 @@ namespace TestClient
             var settings = new AppSettings();
             _configuration.Bind(settings);
             _quoteSessionClient = new FixClient(settings.TestClient.ServiceUrl, settings.TestClient.Credentials.Password, settings.TestClient.Sessions.QuoteSession);
-            _quoteSessionClient.Start();
+            _quoteSessionClient.Init();
             _log.WriteWarning("Quote session connected", "", "");
 
             _tradeSessionClient = new FixClient(settings.TestClient.ServiceUrl, settings.TestClient.Credentials.Password, settings.TestClient.Sessions.TradeSession);
-            _tradeSessionClient.Start();
+            _tradeSessionClient.Init();
             _log.WriteWarning("Quote session connected", "", "");
 
         }

@@ -13,6 +13,10 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="2.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Lykke.Service.FixGateway.Core\Lykke.Service.FixGateway.Core.csproj" />
+  </ItemGroup>
+
 
 
   <ItemGroup>

@@ -7,11 +7,12 @@ using Autofac;
 using Common.Log;
 using JetBrains.Annotations;
 using Lykke.RabbitMqBroker.Subscriber;
+using Lykke.Service.FixGateway.Core.Services;
 
 namespace Lykke.Service.FixGateway.Services
 {
     [UsedImplicitly]
-    public sealed class MessagesDispatcher<T> : IObservable<T>, IStartable
+    public sealed class MessagesDispatcher<T> : IObservable<T>, ISupportInit
     {
         private readonly RabbitMqSubscriber<T> _subscriber;
         private readonly ILog _log;
@@ -31,7 +32,7 @@ namespace Lykke.Service.FixGateway.Services
             return Task.CompletedTask;
         }
 
-        public void Start()
+        public void Init()
         {
             _subscriber.Start();
         }

@@ -4,7 +4,7 @@ using Autofac;
 
 namespace Lykke.Service.FixGateway.Core.Services
 {
-    public interface IClientOrderIdProvider : IStartable
+    public interface IClientOrderIdProvider : ISupportInit
     {
         Task RegisterNewOrderAsync(Guid orderId, string clientOrderId);
         Task<bool> CheckExistsAsync(string clientOrderId);

@@ -4,7 +4,6 @@ using Autofac;
 using Common.Log;
 using JetBrains.Annotations;
 using Lykke.Logging;
-using Lykke.Service.Assets.Client;
 using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
 using QuickFix;
@@ -17,11 +16,10 @@ namespace Lykke.Service.FixGateway.Services
 {
     [UsedImplicitly]
     // ReSharper disable once ClassWithVirtualMembersNeverInherited.Global
-    public class QuoteSessionManager : ISessionManager
+    public sealed class QuoteSessionManager : ISessionManager
     {
         private readonly Credentials _credentials;
         private readonly ILifetimeScope _lifetimeScope;
-        private readonly IMaintenanceModeManager _maintenanceModeManager;
 
         private readonly ILog _log;
         private readonly ThreadedSocketAcceptor _socketAcceptor;
@@ -30,10 +28,9 @@ namespace Lykke.Service.FixGateway.Services
 
 
 
-        public QuoteSessionManager(SessionSetting setting, Credentials credentials, IAssetsServiceWithCache assetsService, ILifetimeScope lifetimeScope, IFixLogEntityRepository fixLogEntityRepository, ILog log, IMaintenanceModeManager maintenanceModeManager)
+        public QuoteSessionManager(SessionSetting setting, Credentials credentials, ILifetimeScope lifetimeScope, IFixLogEntityRepository fixLogEntityRepository, ILog log)
         {
             _lifetimeScope = lifetimeScope;
-            _maintenanceModeManager = maintenanceModeManager;
             _credentials = credentials;
             _log = log.CreateComponentScope(nameof(QuoteSessionManager));
 
@@ -47,7 +44,7 @@ namespace Lykke.Service.FixGateway.Services
 
         }
 
-        public void Start()
+        public void Init()
         {
             _socketAcceptor.Start();
         }
@@ -55,19 +52,11 @@ namespace Lykke.Service.FixGateway.Services
 
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            foreach (var lifetimeScope in _sessionContainers)
-            {
-                lifetimeScope.Value.Dispose();
-            }
             Stop();
             _socketAcceptor.Dispose();
         }
+
+
 
 
         public void Stop()
@@ -95,9 +84,17 @@ namespace Lykke.Service.FixGateway.Services
 
         public void FromApp(Message message, SessionID sessionID)
         {
-            if (!_maintenanceModeManager.AllowProcessMessages(message, sessionID))
+            if (_sessionContainers.TryGetValue(sessionID, out var scope))
             {
-                return;
+                if (!scope.Resolve<IMaintenanceModeManager>().AllowProcessMessages(message))
+                {
+                    _log.WriteInfo(nameof(FromApp), "", $"Maintenance mode is active. Ignore {message.GetType().Name} request from  {sessionID}");
+                    return;
+                }
+            }
+            else
+            {
+                _log.WriteWarning("Handle NewOrderSingle", $"SessionID:{sessionID}", "Inconsistent state of the session. Inform developers about this.");
             }
             dynamic msg = message;
             HandleRequest(msg, sessionID);
@@ -109,7 +106,7 @@ namespace Lykke.Service.FixGateway.Services
             // Nothing to do here
         }
 
-        public virtual void OnLogout(SessionID sessionID)
+        public void OnLogout(SessionID sessionID)
         {
             if (_sessionContainers.TryGetValue(sessionID, out var innerScope))
             {
@@ -128,7 +125,7 @@ namespace Lykke.Service.FixGateway.Services
 
         }
 
-        public virtual void OnLogon(SessionID sessionID)
+        public void OnLogon(SessionID sessionID)
         {
             Init(sessionID);
             _log.WriteInfo("User logged in", $"SenderCompID: {sessionID.SenderCompID}", "");
@@ -138,7 +135,7 @@ namespace Lykke.Service.FixGateway.Services
         {
             if (_sessionContainers.TryGetValue(sessionID, out var scope))
             {
-                scope.Resolve<AssetsListRequestHandler>().Handle(request);
+                scope.Resolve<ISecurityListRequestHandler>().Handle(request).GetAwaiter().GetResult();
             }
             else
             {
@@ -150,7 +147,7 @@ namespace Lykke.Service.FixGateway.Services
         {
             if (_sessionContainers.TryGetValue(sessionID, out var scope))
             {
-                scope.Resolve<MarketDataRequestHandler>().Handle(request);
+                scope.Resolve<IMarketDataRequestHandler>().Handle(request).GetAwaiter().GetResult();
             }
             else
             {
@@ -172,10 +169,8 @@ namespace Lykke.Service.FixGateway.Services
         {
             try
             {
-                var innerScope = _lifetimeScope.BeginLifetimeScope();
-                var sessionState = new SessionState(sessionID);
-                innerScope.Resolve<AssetsListRequestHandler>(TypedParameter.From(sessionState));
-                innerScope.Resolve<MarketDataRequestHandler>(TypedParameter.From(sessionState));
+                var innerScope = _lifetimeScope.BeginLifetimeScope(c => c.RegisterInstance(new SessionState(sessionID)));
+                innerScope.Resolve<IMarketDataRequestHandler>().Init();
                 _sessionContainers.TryAdd(sessionID, innerScope);
             }
             catch (Exception ex)

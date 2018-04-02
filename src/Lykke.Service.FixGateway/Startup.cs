@@ -4,6 +4,7 @@ using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using AzureStorage.Tables;
 using Common.Log;
+using JetBrains.Annotations;
 using Lykke.Common.ApiLibrary.Middleware;
 using Lykke.Common.ApiLibrary.Swagger;
 using Lykke.Logs;
@@ -19,9 +20,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Lykke.Service.FixGateway
 {
+    [UsedImplicitly]
     internal sealed class Startup
     {
-        private IHostingEnvironment Environment { get; }
         private IContainer ApplicationContainer { get; set; }
         private IConfigurationRoot Configuration { get; }
         private ILog Log { get; set; }
@@ -32,8 +33,6 @@ namespace Lykke.Service.FixGateway
                 .SetBasePath(env.ContentRootPath)
                 .AddEnvironmentVariables();
             Configuration = builder.Build();
-
-            Environment = env;
         }
 
         public IServiceProvider ConfigureServices(IServiceCollection services)
@@ -61,11 +60,22 @@ namespace Lykke.Service.FixGateway
                 Log = CreateLogWithSlack(services, appSettings);
 
                 builder.RegisterModule(new ServiceModule(appSettings.Nested(x => x.FixGatewayService), Log));
-                builder.RegisterModule(new ClientModules(appSettings.Nested(x => x), Log));
-                builder.RegisterModule(new MatchingEngineModule(appSettings.Nested(x => x)));
+
+
                 builder.RegisterModule(new RedisModule(appSettings.Nested(x => x.RedisSettings)));
+
                 builder.RegisterModule<AutoMapperModules>();
-                builder.RegisterModule(new RabbitMqModule(appSettings.Nested(x => x.FixGatewayService), Log));
+
+                if (appSettings.CurrentValue.TradingPlatform == TradingPlatform.Spot)
+                {
+                    builder.RegisterModule(new SpotModules(appSettings.Nested(x => x.SpotDependencies), Log));
+                }
+                else
+                {
+                    builder.RegisterModule(new MtModules(appSettings.Nested(x => x.MtDependencies)));
+                }
+                Log.WriteInfoAsync(nameof(Startup), nameof(ConfigureServices), "", $"Active trading platform is {appSettings.CurrentValue.TradingPlatform}");
+
 
                 builder.Populate(services);
                 ApplicationContainer = builder.Build();

@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Autofac;
 using Common.Log;
 using JetBrains.Annotations;
-using Lykke.Service.Assets.Client;
 using Lykke.Service.FixGateway.Core.Domain;
-using Lykke.Service.FixGateway.Core.Extensions;
 using Lykke.Service.FixGateway.Core.Services;
+using Lykke.Service.FixGateway.Services.Extensions;
 using QuickFix.Fields;
 using QuickFix.FIX44;
 using ILog = Common.Log.ILog;
@@ -18,24 +18,23 @@ using Message = QuickFix.Message;
 namespace Lykke.Service.FixGateway.Services
 {
     [UsedImplicitly]
-    public sealed class MarketDataRequestHandler : IRequestHandler<MarketDataRequest>
+    public sealed class MarketDataRequestHandler : IMarketDataRequestHandler
     {
-        private readonly IAssetsServiceWithCache _assetsServiceWithCache;
-        private readonly SessionState _sessionState;
+        private readonly IMarketDataRequestValidator _requestValidator;
+        private readonly IObservable<OrderBook> _messageProducer;
         private readonly IFixMessagesSender _fixMessagesSender;
         private readonly ILog _log;
         private readonly ConcurrentDictionary<string, Subscription> _subscriptions = new ConcurrentDictionary<string, Subscription>();
         private readonly CancellationTokenSource _tokenSource;
-        private readonly IDisposable _orderBookSubscription;
+        private IDisposable _orderBookSubscription;
 
-        public MarketDataRequestHandler(IAssetsServiceWithCache assetsServiceWithCache, IObservable<OrderBook> messageProducer, SessionState sessionState, IFixMessagesSender fixMessagesSender, ILog log)
+        public MarketDataRequestHandler(IMarketDataRequestValidator requestValidator, IObservable<OrderBook> messageProducer, IFixMessagesSender fixMessagesSender, ILog log)
         {
-            _assetsServiceWithCache = assetsServiceWithCache;
-            _sessionState = sessionState;
+            _requestValidator = requestValidator;
+            _messageProducer = messageProducer;
             _fixMessagesSender = fixMessagesSender;
             _log = log.CreateComponentScope(nameof(MarketDataRequestHandler));
             _tokenSource = new CancellationTokenSource();
-            _orderBookSubscription = messageProducer.Subscribe(OrderBookReceived);
         }
 
         private void OrderBookReceived(OrderBook orderBook)
@@ -90,9 +89,9 @@ namespace Lykke.Service.FixGateway.Services
         }
 
 
-        public void Handle(MarketDataRequest request)
+        public Task Handle(MarketDataRequest request)
         {
-           HandleRequestAsync(request).GetAwaiter().GetResult();
+            return HandleRequestAsync(request);
         }
 
         private void AbortAllSubscriptions()
@@ -106,7 +105,7 @@ namespace Lykke.Service.FixGateway.Services
         {
             try
             {
-                if (!await ValidateRequestAsync(request))
+                if (!await _requestValidator.ValidateAsync(request, _subscriptions.Keys, _tokenSource.Token))
                 {
                     return;
                 }
@@ -122,13 +121,9 @@ namespace Lykke.Service.FixGateway.Services
             }
             catch (Exception ex)
             {
-                await _log.WriteWarningAsync(nameof(HandleRequestAsync), "Unable to handle market data request", "", ex);
-                var reject = new Reject
-                {
-                    RefSeqNum = new RefSeqNum(request.Header.GetInt(Tags.MsgSeqNum)),
-                    SessionRejectReason = new SessionRejectReason(SessionRejectReason.OTHER)
-
-                };
+                var erroCode = Guid.NewGuid();
+                await _log.WriteWarningAsync(nameof(HandleRequestAsync), $"Unable to handle market data request. MarketDataRequest.MDReqID: {request.MDReqID.Obj}  Error code {erroCode}", "", ex);
+                var reject = new Reject().CreateReject(request, erroCode);
                 Send(reject);
             }
         }
@@ -174,77 +169,14 @@ namespace Lykke.Service.FixGateway.Services
 
         }
 
-        private async Task<bool> ValidateRequestAsync(MarketDataRequest request)
-        {
-            Message reject = null;
-            if (_subscriptions.ContainsKey(request.MDReqID.Obj))
-            {
-                reject = GetFailedResponse(request, MDReqRejReason.DUPLICATE_MDREQID);
-            }
-            else if (request.SubscriptionRequestType.Obj != SubscriptionRequestType.SNAPSHOT_PLUS_UPDATES
-               && request.SubscriptionRequestType.Obj != SubscriptionRequestType.DISABLE_PREVIOUS_SNAPSHOT_PLUS_UPDATE_REQUEST)
-            {
-                reject = GetFailedResponse(request, MDReqRejReason.UNSUPPORTED_SUBSCRIPTIONREQUESTTYPE);
-            }
-            else if (request.MarketDepth.Obj < 0)
-            {
-                reject = GetFailedResponse(request, MDReqRejReason.UNSUPPORTED_MARKETDEPTH);
-            }
 
-            var entryInvalid = false;
-            for (var i = 1; i <= request.NoMDEntryTypes.Obj; i++)
-            {
-                var entityType = ((MarketDataRequest.NoMDEntryTypesGroup)request.GetGroup(i, new MarketDataRequest.NoMDEntryTypesGroup())).MDEntryType;
 
-                if (entityType.Obj != MDEntryType.OFFER && entityType.Obj != MDEntryType.BID)
-                {
-                    entryInvalid = true;
-                    break;
-                }
-            }
 
-            if (entryInvalid)
-            {
-                reject = GetFailedResponse(request, MDReqRejReason.UNSUPPORTED_MDENTRYTYPE);
-            }
-
-            var allSymbols = (await _assetsServiceWithCache.GetAllEnabledAssetPairsAsync(_tokenSource.Token))
-                .Select(ap => ap.Id)
-                .ToHashSet();
-
-            for (var i = 1; i <= request.NoRelatedSym.Obj; i++)
-            {
-                var symbol = ((MarketDataRequest.NoRelatedSymGroup)request.GetGroup(i, new MarketDataRequest.NoRelatedSymGroup())).Symbol.Obj;
-
-                if (!allSymbols.Contains(symbol))
-                {
-                    reject = GetFailedResponse(request, MDReqRejReason.UNKNOWN_SYMBOL);
-                    break;
-                }
-            }
-
-            if (reject != null)
-            {
-                Send(reject);
-                return false;
-            }
-            return true;
-        }
-
-        private static Message GetFailedResponse(MarketDataRequest request, char rejectReason)
-        {
-            var reject = new MarketDataRequestReject
-            {
-                MDReqID = request.MDReqID,
-                MDReqRejReason = new MDReqRejReason(rejectReason)
-            };
-            return reject;
-        }
 
 
         private void Send(Message message)
         {
-            _fixMessagesSender.Send(message, _sessionState.SessionID);
+            _fixMessagesSender.Send(message);
         }
 
         private sealed class Subscription
@@ -268,6 +200,11 @@ namespace Lykke.Service.FixGateway.Services
             AbortAllSubscriptions();
             _tokenSource.Cancel();
             _tokenSource.Dispose();
+        }
+
+        public void Init()
+        {
+            _orderBookSubscription = _messageProducer.Subscribe(OrderBookReceived);
         }
     }
 }

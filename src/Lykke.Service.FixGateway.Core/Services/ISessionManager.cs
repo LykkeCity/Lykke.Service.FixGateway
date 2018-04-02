@@ -4,7 +4,7 @@ using QuickFix;
 
 namespace Lykke.Service.FixGateway.Core.Services
 {
-    public interface ISessionManager : IStartable, IStopable, IApplication
+    public interface ISessionManager : ISupportInit, IStopable, IApplication
     {
 
     }
