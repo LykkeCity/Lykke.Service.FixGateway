@@ -30,7 +30,7 @@ namespace Lykke.Service.FixGateway.Modules
         {
             _services.RegisterAssetsClient(AssetServiceSettings.Create(new Uri(_settings.CurrentValue.Assets.ServiceUrl), _settings.CurrentValue.Assets.CacheExpirationPeriod));
             builder.RegisterFeeCalculatorClientWithCache(_settings.CurrentValue.FeeCalculatorServiceClient.ServiceUrl, _settings.CurrentValue.FeeCalculatorServiceClient.CacheExpirationPeriod, _log);
-            builder.RegisterOperationsClient(_settings.CurrentValue.OperationsServiceClient.ServiceUri);
+            builder.RegisterOperationsClient(_settings.CurrentValue.OperationsServiceClient.ServiceUrl);
             builder.Populate(_services);
             builder.RegisterInstance(_settings.CurrentValue.FeeSettings)
                 .SingleInstance();
