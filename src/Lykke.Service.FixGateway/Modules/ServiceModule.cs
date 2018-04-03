@@ -50,6 +50,11 @@ namespace Lykke.Service.FixGateway.Modules
                 .As<ISessionManager>()
                 .SingleInstance();
 
+            builder.RegisterType<MaintenanceModeManager>()
+                .WithParameter(TypedParameter.From(_settings.CurrentValue.MaintenanceMode))
+                .As<IMaintenanceModeManager>();
+
+
             builder.RegisterInstance(_settings.CurrentValue.Credentials)
                 .SingleInstance();
 
@@ -77,6 +82,7 @@ namespace Lykke.Service.FixGateway.Modules
 
             builder.RegisterType<TradeSessionManager>()
                 .WithParameter(TypedParameter.From(_settings.CurrentValue.Sessions.TradeSession))
+                .WithParameter(TypedParameter.From(_settings.CurrentValue.MaintenanceMode))
                 .As<ISessionManager>()
                 .AsSelf()
                 .SingleInstance();

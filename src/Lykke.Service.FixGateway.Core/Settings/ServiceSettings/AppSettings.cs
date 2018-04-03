@@ -7,6 +7,8 @@ namespace Lykke.Service.FixGateway.Core.Settings.ServiceSettings
     {
         public FixGatewaySettings FixGatewayService { get; set; }
         public AssetsServiceClient Assets { get; set; }
+
+
         public MatchingEngineSettings MatchingEngineClient { get; set; }
         public SlackNotificationsSettings SlackNotifications { get; set; }
         public FeeCalculatorServiceClientSettings FeeCalculatorServiceClient { get; set; }

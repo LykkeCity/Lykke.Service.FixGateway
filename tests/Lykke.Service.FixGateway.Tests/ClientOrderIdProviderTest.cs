@@ -51,7 +51,7 @@ namespace Lykke.Service.FixGateway.Tests
         [Test]
         public async Task StartShouldClearClientOrderIds()
         {
-            _operationsClient.Get(Arg.Any<Guid>(), OperationStatus.Created).Returns(Task.FromResult(Enumerable.Empty<OperationModel>()));
+            _operationsClient.Get(Arg.Any<Guid>(), Operations.Contracts.OperationStatus.Created).Returns(Task.FromResult(Enumerable.Empty<OperationModel>()));
 
             await _multiplexer.GetDatabase().HashSetAsync(string.Format(ClientOrderIdProvider.KeyPrefix, _walletId), new[] { new HashEntry("Name", "Value") });
 
@@ -78,7 +78,7 @@ namespace Lykke.Service.FixGateway.Tests
             }
             };
 
-            _operationsClient.Get(Arg.Any<Guid>(), OperationStatus.Created).Returns(Task.FromResult(ret.AsEnumerable()));
+            _operationsClient.Get(Arg.Any<Guid>(), Operations.Contracts.OperationStatus.Created).Returns(Task.FromResult(ret.AsEnumerable()));
 
             _clientOrderIdProvider.Start();
 

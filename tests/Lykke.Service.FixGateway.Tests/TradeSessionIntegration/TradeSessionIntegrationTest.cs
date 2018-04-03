@@ -40,7 +40,24 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
         public void OrderMonkey()
         {
             SharedTest.OrderMonkey(FIXClient, 12000m, "BTCUSD");
+        }
 
+        [Test]
+        public void ShouldReturnBusinessReject()
+        {
+            var maintenanceMode = AppSettings.CurrentValue.FixGatewayService.MaintenanceMode;
+            maintenanceMode.Enabled = true;
+            maintenanceMode.Reason = "SomeReason";
+
+            var request = CreateNewOrder(ClientOrderId);
+
+            FIXClient.Send(request);
+
+            var resp = FIXClient.GetResponse<Message>();
+
+            Assert.That(resp, Is.Not.Null);
+            Assert.That(resp, Is.TypeOf<BusinessMessageReject>());
+            Assert.That(resp.GetString(Tags.Text), Is.EqualTo(maintenanceMode.Reason));
         }
     }
 

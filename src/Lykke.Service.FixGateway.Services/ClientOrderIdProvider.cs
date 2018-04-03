@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using Lykke.Contracts.Operations;
 using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
 using Lykke.Service.Operations.Client;
@@ -102,7 +100,7 @@ namespace Lykke.Service.FixGateway.Services
 
         public void Start()
         {
-            var operations = _operationsClient.Get(_credentials.ClientId, OperationStatus.Created).GetAwaiter().GetResult();
+            var operations = _operationsClient.Get(_credentials.ClientId, Operations.Contracts.OperationStatus.Created).GetAwaiter().GetResult();
             var db = GetDatabase();
             var tasks = new List<Task>();
 

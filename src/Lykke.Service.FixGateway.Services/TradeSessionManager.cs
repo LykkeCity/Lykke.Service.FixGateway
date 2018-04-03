@@ -19,14 +19,16 @@ namespace Lykke.Service.FixGateway.Services
     {
         private readonly Credentials _credentials;
         private readonly ILifetimeScope _lifetimeScope;
+        private readonly IMaintenanceModeManager _maintenanceModeManager;
         private readonly ILog _log;
         private readonly ThreadedSocketAcceptor _socketAcceptor;
         private readonly ConcurrentDictionary<SessionID, ILifetimeScope> _sessionContainers = new ConcurrentDictionary<SessionID, ILifetimeScope>();
 
-        public TradeSessionManager(SessionSetting setting, Credentials credentials, ILifetimeScope lifetimeScope, IFixLogEntityRepository fixLogEntityRepository, ILog log)
+        public TradeSessionManager(SessionSetting setting, Credentials credentials, ILifetimeScope lifetimeScope, IFixLogEntityRepository fixLogEntityRepository, ILog log, IMaintenanceModeManager maintenanceModeManager)
         {
             _credentials = credentials;
             _lifetimeScope = lifetimeScope;
+            _maintenanceModeManager = maintenanceModeManager;
             _log = log.CreateComponentScope(nameof(TradeSessionManager));
 
             var settings = new SessionSettings(setting.GetFixConfigAsReader());
@@ -86,6 +88,11 @@ namespace Lykke.Service.FixGateway.Services
 
         public void FromApp(Message message, SessionID sessionID)
         {
+            if (!_maintenanceModeManager.AllowProcessMessages(message, sessionID))
+            {
+                return;
+            }
+
             dynamic msg = message;
             HandleRequest(msg, sessionID);
 
@@ -119,6 +126,7 @@ namespace Lykke.Service.FixGateway.Services
 
         public virtual void OnLogon(SessionID sessionID)
         {
+
             Init(sessionID);
             _log.WriteInfo("User logged in", $"SenderCompID: {sessionID.TargetCompID}", "");
         }

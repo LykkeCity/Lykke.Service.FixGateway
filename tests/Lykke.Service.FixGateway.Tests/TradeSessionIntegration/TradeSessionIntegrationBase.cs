@@ -16,14 +16,15 @@ namespace Lykke.Service.FixGateway.Tests.TradeSessionIntegration
         private IContainer _container;
         protected string ClientOrderId;
         protected FixClient FIXClient;
+        protected LocalSettingsReloadingManager<AppSettings> AppSettings;
 
         [SetUp]
         public virtual void SetUp()
         {
-            var appSettings = new LocalSettingsReloadingManager<AppSettings>("appsettings.Development.json");
-            var sessionSetting = appSettings.CurrentValue.FixGatewayService.Sessions.TradeSession;
+            AppSettings = new LocalSettingsReloadingManager<AppSettings>("appsettings.Development.json");
+            var sessionSetting = AppSettings.CurrentValue.FixGatewayService.Sessions.TradeSession;
             var builder = new ContainerBuilder();
-            InitContainer(appSettings, builder);
+            InitContainer(AppSettings, builder);
             _container = builder.Build();
             _container.Resolve<IStartupManager>().StartAsync().GetAwaiter().GetResult();
 

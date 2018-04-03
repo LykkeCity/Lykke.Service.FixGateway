@@ -21,6 +21,7 @@ namespace Lykke.Service.FixGateway.Services
     {
         private readonly Credentials _credentials;
         private readonly ILifetimeScope _lifetimeScope;
+        private readonly IMaintenanceModeManager _maintenanceModeManager;
 
         private readonly ILog _log;
         private readonly ThreadedSocketAcceptor _socketAcceptor;
@@ -28,9 +29,11 @@ namespace Lykke.Service.FixGateway.Services
         private readonly ConcurrentDictionary<SessionID, ILifetimeScope> _sessionContainers = new ConcurrentDictionary<SessionID, ILifetimeScope>();
 
 
-        public QuoteSessionManager(SessionSetting setting, Credentials credentials, IAssetsServiceWithCache assetsService, ILifetimeScope lifetimeScope, IFixLogEntityRepository fixLogEntityRepository, ILog log)
+
+        public QuoteSessionManager(SessionSetting setting, Credentials credentials, IAssetsServiceWithCache assetsService, ILifetimeScope lifetimeScope, IFixLogEntityRepository fixLogEntityRepository, ILog log, IMaintenanceModeManager maintenanceModeManager)
         {
             _lifetimeScope = lifetimeScope;
+            _maintenanceModeManager = maintenanceModeManager;
             _credentials = credentials;
             _log = log.CreateComponentScope(nameof(QuoteSessionManager));
 
@@ -92,6 +95,10 @@ namespace Lykke.Service.FixGateway.Services
 
         public void FromApp(Message message, SessionID sessionID)
         {
+            if (!_maintenanceModeManager.AllowProcessMessages(message, sessionID))
+            {
+                return;
+            }
             dynamic msg = message;
             HandleRequest(msg, sessionID);
 

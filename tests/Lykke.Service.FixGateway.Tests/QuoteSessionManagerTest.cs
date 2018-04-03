@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Common.Log;
+using Lykke.Logging;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.Assets.Client.Models;
 using Lykke.Service.FixGateway.Core.Domain;
@@ -29,21 +30,24 @@ namespace Lykke.Service.FixGateway.Tests
         private FixClient _fixClient;
         private SessionSetting _sessionSettings;
         private Subject<OrderBook> _orderBookSource;
+        private LocalSettingsReloadingManager<AppSettings> _appSettings;
 
         [SetUp]
         public void Setup()
         {
-            var appSettings = new LocalSettingsReloadingManager<AppSettings>("appsettings.Development.json");
+            _appSettings = new LocalSettingsReloadingManager<AppSettings>("appsettings.Development.json");
             _orderBookSource = new Subject<OrderBook>();
+            var logRepo = Substitute.For<IFixLogEntityRepository>();
+            InitContainer(_appSettings);
 
-            InitContainer(appSettings);
+            _sessionSettings = _appSettings.CurrentValue.FixGatewayService.Sessions.QuoteSession;
 
-            _sessionSettings = appSettings.CurrentValue.FixGatewayService.Sessions.QuoteSession;
-
-            _sessionManager = Substitute.ForPartsOf<QuoteSessionManager>(_sessionSettings, appSettings.CurrentValue.FixGatewayService.Credentials,
+            _sessionManager = Substitute.ForPartsOf<QuoteSessionManager>(_sessionSettings, _appSettings.CurrentValue.FixGatewayService.Credentials,
                 _container.Resolve<IAssetsServiceWithCache>(),
                 _container.Resolve<ILifetimeScope>(),
-                _container.Resolve<ILog>());
+                logRepo,
+                _container.Resolve<ILog>(),
+                _container.Resolve<IMaintenanceModeManager>());
             _fixClient = new FixClient(_sessionSettings.SenderCompID, _sessionSettings.TargetCompID);
         }
 
@@ -169,6 +173,32 @@ namespace Lykke.Service.FixGateway.Tests
         }
 
         [Test]
+        public void ShouldReturnBusinessReject()
+        {
+            var maintenanceMode = _appSettings.CurrentValue.FixGatewayService.MaintenanceMode;
+            maintenanceMode.Enabled = true;
+            maintenanceMode.Reason = "SomeReason";
+
+            _sessionManager.Start();
+            _fixClient.Start();
+
+            var request = new SecurityListRequest
+            {
+                SecurityReqID = new SecurityReqID("42"),
+                SecurityListRequestType = new SecurityListRequestType(SecurityListRequestType.ALL_SECURITIES)
+            };
+
+            _fixClient.Send(request);
+
+            var resp = _fixClient.GetResponse<Message>();
+
+            Assert.That(resp, Is.Not.Null);
+            Assert.That(resp, Is.TypeOf<BusinessMessageReject>());
+            Assert.That(resp.GetString(Tags.Text), Is.EqualTo(maintenanceMode.Reason));
+
+        }
+
+        [Test]
         public void ShouldSubscribeOnMarketData()
         {
             SetupAssetService();
@@ -189,7 +219,7 @@ namespace Lykke.Service.FixGateway.Tests
                 }
             });
             Thread.Sleep(10000);
-            var resp = _fixClient.GetResponse< QuickFix.Message>();
+            var resp = _fixClient.GetResponse<QuickFix.Message>();
             stopPublishing = true;
             Assert.That(resp, Is.TypeOf<MarketDataSnapshotFullRefresh>());
         }
