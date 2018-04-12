@@ -51,7 +51,7 @@ namespace Lykke.Service.FixGateway.Tests.Spot.TradeSessionIntegration
 
 
             builder.RegisterModule(new ServiceModule(appSettings.Nested(x => x.FixGatewayService), log));
-            builder.RegisterModule(new SpotModules(appSettings.Nested(x => x.SpotDependencies), log));
+            builder.RegisterModule(new SpotModules(appSettings.Nested(x => x.FixGatewayService.SpotDependencies), log));
             builder.RegisterModule(new RedisModule(appSettings.Nested(x => x.RedisSettings)));
             builder.RegisterModule(new AutoMapperModules());
         }

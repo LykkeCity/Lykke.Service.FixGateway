@@ -66,15 +66,15 @@ namespace Lykke.Service.FixGateway
 
                 builder.RegisterModule<AutoMapperModules>();
 
-                if (appSettings.CurrentValue.TradingPlatform == TradingPlatform.Spot)
+                if (appSettings.CurrentValue.FixGatewayService.TradingPlatform == TradingPlatform.Spot)
                 {
-                    builder.RegisterModule(new SpotModules(appSettings.Nested(x => x.SpotDependencies), Log));
+                    builder.RegisterModule(new SpotModules(appSettings.Nested(x => x.FixGatewayService.SpotDependencies), Log));
                 }
                 else
                 {
-                    builder.RegisterModule(new MtModules(appSettings.Nested(x => x.MtDependencies)));
+                    builder.RegisterModule(new MtModules(appSettings.Nested(x => x.FixGatewayService.MtDependencies)));
                 }
-                Log.WriteInfoAsync(nameof(Startup), nameof(ConfigureServices), "", $"Active trading platform is {appSettings.CurrentValue.TradingPlatform}");
+                Log.WriteInfoAsync(nameof(Startup), nameof(ConfigureServices), "", $"Active trading platform is {appSettings.CurrentValue.FixGatewayService.TradingPlatform}");
 
 
                 builder.Populate(services);

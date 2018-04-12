@@ -70,6 +70,7 @@ namespace Lykke.Service.FixGateway.Services
 
         public void ToAdmin(Message message, SessionID sessionID)
         {
+            // Nothing to do here
         }
 
         public void FromAdmin(Message message, SessionID sessionID)
@@ -82,6 +83,7 @@ namespace Lykke.Service.FixGateway.Services
 
         public void ToApp(Message message, SessionID sessionId)
         {
+            // Nothing to do here
         }
 
         public void FromApp(Message message, SessionID sessionID)

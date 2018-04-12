@@ -22,7 +22,7 @@ namespace Lykke.Service.FixGateway.Tests.MT
         public void SetUp()
         {
             var settings = new LocalSettingsReloadingManager<AppSettings>("appsettings.Development.json");
-            var mtSettings = settings.CurrentValue.MtDependencies.MarginTradingClientSettings;
+            var mtSettings = settings.CurrentValue.FixGatewayService.MtDependencies.MarginTradingClientSettings;
             var mtClient = new MarginTradingApi(new Uri(mtSettings.ServiceUrl), mtSettings.ApiKey);
             var cred = settings.CurrentValue.FixGatewayService.Credentials;
             var mapper = new MapperConfiguration(cfg => cfg.AddProfile(new AutoMapperProfile())).CreateMapper();
