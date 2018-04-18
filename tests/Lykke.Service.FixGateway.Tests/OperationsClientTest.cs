@@ -56,17 +56,18 @@ namespace Lykke.Service.FixGateway.Tests
                 var id2 = entry.Value;
                 try
                 {
-                    await client.ApiOperationsCancelByIdPostAsync(Guid.Parse(id1));
+                    client.ApiOperationsCancelByIdPostAsync(Guid.Parse(id1));
 
                 }
-                catch {}
+                catch { }
 
                 try
                 {
-                    await client.ApiOperationsCancelByIdPostAsync(Guid.Parse(id2));
+                    client.ApiOperationsCancelByIdPostAsync(Guid.Parse(id2));
                 }
-                catch {}
-               
+                catch { }
+
+                var deleted = await _multiplexer.GetDatabase().HashDeleteAsync(string.Format(ClientOrderIdProvider.KeyPrefix, Const.ClientId), id1);
             }
 
         }

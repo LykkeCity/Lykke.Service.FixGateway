@@ -13,32 +13,34 @@ namespace Lykke.Service.FixGateway.Tests.Spot.TradeSessionIntegration
 {
     internal abstract class TradeSessionIntegrationBase : IDisposable
     {
-        private IContainer _container;
+        protected IContainer Container;
         protected string ClientOrderId;
         protected FixClient FIXClient;
         protected LocalSettingsReloadingManager<AppSettings> AppSettings;
+        private SessionSetting _sessionSetting;
 
         [SetUp]
         public virtual void SetUp()
         {
             AppSettings = new LocalSettingsReloadingManager<AppSettings>("appsettings.Development.json");
-            var sessionSetting = AppSettings.CurrentValue.FixGatewayService.Sessions.TradeSession;
+            _sessionSetting = AppSettings.CurrentValue.FixGatewayService.Sessions.TradeSession;
             var builder = new ContainerBuilder();
             InitContainer(AppSettings, builder);
-            _container = builder.Build();
-            _container.Resolve<IStartupManager>().StartAsync().GetAwaiter().GetResult();
-
-            FIXClient = new FixClient(sessionSetting.SenderCompID, sessionSetting.TargetCompID, port: 12357);
+            Container = builder.Build();
+            Container.Resolve<IStartupManager>().StartAsync().GetAwaiter().GetResult();
+            FIXClient = new FixClient(_sessionSetting.SenderCompID, _sessionSetting.TargetCompID, port: 12357);
             FIXClient.Init();
             ClientOrderId = Guid.NewGuid().ToString();
+
+
         }
 
         [TearDown]
         public virtual void TearDown()
         {
             FIXClient?.Stop();
-            _container?.Resolve<IShutdownManager>().StopAsync().GetAwaiter().GetResult();
-            _container?.Dispose();
+            Container?.Resolve<IShutdownManager>().StopAsync().GetAwaiter().GetResult();
+            Container?.Dispose();
         }
 
         protected virtual void InitContainer(LocalSettingsReloadingManager<AppSettings> appSettings, ContainerBuilder builder)
@@ -79,7 +81,8 @@ namespace Lykke.Service.FixGateway.Tests.Spot.TradeSessionIntegration
 
         public void Dispose()
         {
-            _container?.Dispose();
+            Container?.Dispose();
         }
+
     }
 }

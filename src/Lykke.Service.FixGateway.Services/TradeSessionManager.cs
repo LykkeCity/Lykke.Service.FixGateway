@@ -178,7 +178,7 @@ namespace Lykke.Service.FixGateway.Services
         {
             try
             {
-                var innerScope = _lifetimeScope.BeginLifetimeScope(c => c.RegisterInstance(new SessionState(sessionID)));
+                var innerScope = _lifetimeScope.BeginLifetimeScope(c => c.RegisterInstance(new SessionState(sessionID, _log)));
                 innerScope.Resolve<IClientOrderIdProvider>().Init();
                 innerScope.Resolve<MarketOrderNotificationsListener>().Init();
                 innerScope.Resolve<LimitOrderNotificationsListener>().Init();

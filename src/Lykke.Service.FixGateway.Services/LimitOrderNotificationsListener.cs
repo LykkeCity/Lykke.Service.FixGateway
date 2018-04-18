@@ -67,13 +67,10 @@ namespace Lykke.Service.FixGateway.Services
             }
 
             var orderId = Guid.Parse(order.ExternalId);
-            var cachedClientOrderId = await _clientOrderIdProvider.FindClientOrderIdByOrderIdAsync(orderId);
-            if (string.IsNullOrEmpty(cachedClientOrderId))
-            {
-                // Probably the client created|deleted the order via GUI or HFT. The clientOrderId is required field so we can't send an response for this 
-                _log.WriteInfo(nameof(HandleSingleOrder), orderId, $"Can't find client order id for {orderId}. It means the client has a parallel session opened via GUI or HFT");
-                return;
-            }
+            _sessionState.ConfirmRequest(orderId.ToString());
+
+            var cachedClientOrderId = await _clientOrderIdProvider.FindClientOrderIdByOrderIdAsync(orderId) ?? "Unknown";
+
 
             var responses = new List<Message>();
 

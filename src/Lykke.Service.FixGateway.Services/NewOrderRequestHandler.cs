@@ -34,7 +34,6 @@ namespace Lykke.Service.FixGateway.Services
         private readonly IFixMessagesSender _fixMessagesSender;
         private readonly IFixNewOrderRequestValidator _newOrderRequestValidator;
         private readonly CancellationTokenSource _tokenSource;
-        private readonly TimeSpan _meRequestTimeout = TimeSpan.FromSeconds(5);
 
 
 
@@ -130,12 +129,17 @@ namespace Lykke.Service.FixGateway.Services
                 CancelPreviousOrders = false
             };
 
-            using (var timeout = new CancellationTokenSource(_meRequestTimeout))
+            var ack = CreteAckResponse(newOrderId, request);
+            _sessionState.RegisterRequest(newOrderId.ToString(), $"Did not receive a response from ME for limit order with ID: {newOrderId}");
+            Send(ack);
+
+            using (var timeout = new CancellationTokenSource(Const.MeRequestTimeout))
             using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(_tokenSource.Token, timeout.Token))
             {
                 var meResponse = await _matchingEngineClient.PlaceLimitOrderAsync(orderModel, linkedTokenSource.Token);
                 await CheckResponseAndThrowIfNullAsync(meResponse);
                 SendResponse(newOrderId, request, meResponse.Status);
+                _sessionState.ConfirmRequest(newOrderId.ToString());
             }
 
 
@@ -147,10 +151,6 @@ namespace Lykke.Service.FixGateway.Services
             //Send only if received OK. Other messages we will receive via RabbitMq
             switch (status)
             {
-                case MessageStatus.Ok:
-                    var ack = CreteAckResponse(newOrderId, request);
-                    Send(ack);
-                    break;
                 case MessageStatus.Duplicate:
                 case MessageStatus.Runtime:
                     var rejectReason = _mapper.Map<OrdRejReason>(status);
@@ -177,12 +177,17 @@ namespace Lykke.Service.FixGateway.Services
                 ReservedLimitVolume = null
             };
 
-            using (var timeout = new CancellationTokenSource(_meRequestTimeout))
+            var ack = CreteAckResponse(newOrderId, request);
+            _sessionState.RegisterRequest(newOrderId.ToString(), $"Did not receive a response from ME for market order with ID: {newOrderId}");
+            Send(ack);
+
+            using (var timeout = new CancellationTokenSource(Const.MeRequestTimeout))
             using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(_tokenSource.Token, timeout.Token))
             {
                 var meResponse = await _matchingEngineClient.HandleMarketOrderAsync(orderModel, linkedTokenSource.Token);
                 await CheckResponseAndThrowIfNullAsync(meResponse);
                 SendResponse(newOrderId, request, meResponse.Status);
+                _sessionState.ConfirmRequest(newOrderId.ToString());
             }
         }
 

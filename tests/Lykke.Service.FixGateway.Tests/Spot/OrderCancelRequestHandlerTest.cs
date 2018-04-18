@@ -28,9 +28,10 @@ namespace Lykke.Service.FixGateway.Tests.Spot
         [SetUp]
         public void Setup()
         {
-            var sessState = new SessionState(new SessionID("", "", ""));
             _messageSender = Substitute.For<IFixMessagesSender>();
             var log = new LogToConsole();
+            var sessState = new SessionState(new SessionID("", "", ""), log);
+
             _clientOrderIdProvider = Substitute.For<IClientOrderIdProvider>();
             _matchingEngineClient = Substitute.For<IMatchingEngineClient>();
             _validator = Substitute.For<IOrderCancelRequestValidator>();

@@ -169,7 +169,7 @@ namespace Lykke.Service.FixGateway.Services
         {
             try
             {
-                var innerScope = _lifetimeScope.BeginLifetimeScope(c => c.RegisterInstance(new SessionState(sessionID)));
+                var innerScope = _lifetimeScope.BeginLifetimeScope(c => c.RegisterInstance(new SessionState(sessionID, _log)));
                 innerScope.Resolve<IMarketDataRequestHandler>().Init();
                 _sessionContainers.TryAdd(sessionID, innerScope);
             }

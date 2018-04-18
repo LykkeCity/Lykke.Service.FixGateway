@@ -55,6 +55,8 @@ namespace Lykke.Service.FixGateway.Services
             }
 
             var orderId = Guid.Parse(marketOrder.ExternalId);
+            _sessionState.ConfirmRequest(orderId.ToString());
+
             var cachedClientOrderId = await _clientOrderIdProvider.FindClientOrderIdByOrderIdAsync(orderId);
             if (string.IsNullOrEmpty(cachedClientOrderId)) 
             {

@@ -56,6 +56,9 @@ namespace Lykke.Service.FixGateway.Services
                 }
                 var orderId = await _clientOrderIdProvider.GetOrderIdByClientOrderId(request.OrigClOrdID.Obj);
                 MeResponseModel meResponse;
+                var ack = CreteAckResponse(request);
+                Send(ack);
+                _sessionState.RegisterRequest(orderId.ToString(), $"Did not receive a response from ME for order cancellation with ID: {orderId}");
                 using (var timeout = new CancellationTokenSource(_meRequestTimeout))
                 using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(_tokenSource.Token, timeout.Token))
                 {
@@ -63,22 +66,24 @@ namespace Lykke.Service.FixGateway.Services
                     CheckResponseAndThrowIfNullAsync(meResponse);
                 }
 
-                Message response;
                 switch (meResponse.Status)
                 {
-                    case MeStatusCodes.Ok:
-                        response = CreteAckResponse(request);
-                        break;
                     case MeStatusCodes.AlreadyProcessed:
                     case MeStatusCodes.NotFound:
                     case MeStatusCodes.Runtime:
-                        response = new OrderCancelReject().CreateReject(request, _mapper.Map<CxlRejReason>(meResponse.Status));
+                        Message response = new OrderCancelReject().CreateReject(request, _mapper.Map<CxlRejReason>(meResponse.Status));
+                        Send(response);
+                        _sessionState.ConfirmRequest(orderId.ToString());
+                        break;
+                    case MeStatusCodes.Ok:
+                        // Just ignore it. We've already sent Ack
                         break;
                     default:
                         throw new InvalidOperationException($"Unexpected ME status {meResponse.Status}");
                 }
 
-                Send(response);
+
+
 
             }
             catch (Exception ex)

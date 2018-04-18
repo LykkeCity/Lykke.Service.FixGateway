@@ -5,9 +5,40 @@ using QuickFix.FIX44;
 
 namespace Lykke.Service.FixGateway.Tests.Spot.TradeSessionIntegration
 {
-    [TestFixture, Explicit("Only for manual testing on a dev machine")]
+    [TestFixture("LYKKE_T", "SENDER_T", null, 12357)]
+    [TestFixture(Const.TargetCompId, Const.SenderCompId, Const.Uri, Const.Port)]
+    [Explicit("Only for manual testing on a dev machine")]
     internal class TradeSessionLocalIntegrationTest : TradeSessionIntegrationBase
     {
+        private readonly string _targetCompId;
+        private readonly string _senderCompId;
+        private readonly string _uri;
+        private readonly int _port;
+
+
+
+        public TradeSessionLocalIntegrationTest(string targetCompId, string senderCompId, string uri, int port)
+        {
+            _targetCompId = targetCompId;
+            _senderCompId = senderCompId;
+            _uri = uri ?? Environment.GetEnvironmentVariable("ServiceUrl");
+            _port = port;
+        }
+
+        public override void SetUp()
+        {
+            if (_uri == Const.Uri)
+            {
+                base.SetUp();
+            }
+            else
+            {
+                FIXClient = new FixClient(_targetCompId, _senderCompId, _uri, _port);
+                ClientOrderId = Guid.NewGuid().ToString();
+                FIXClient.Init();
+            }
+
+        }
 
         [Test]
         public void ShouldPlaceMarketOrder()
@@ -57,46 +88,6 @@ namespace Lykke.Service.FixGateway.Tests.Spot.TradeSessionIntegration
             Assert.That(resp, Is.Not.Null);
             Assert.That(resp, Is.TypeOf<BusinessMessageReject>());
             Assert.That(resp.GetString(Tags.Text), Is.EqualTo(maintenanceMode.Reason));
-        }
-    }
-
-    [TestFixture]
-    internal class TradeSessionExternalIntegrationTest : TradeSessionIntegrationBase
-    {
-        private readonly string _uri = Environment.GetEnvironmentVariable("ServiceUrl");
-
-
-        public override void SetUp()
-        {
-            ClientOrderId = Guid.NewGuid().ToString();
-            FIXClient = new FixClient("LYKKE_T", "SENDER_T", _uri, 12357);
-            FIXClient.Init();
-        }
-
-        public override void TearDown()
-        {
-            FIXClient.Stop();
-        }
-
-        [Test]
-        public void ShouldPlaceMarketOrder()
-        {
-            SharedTest.ShouldPlaceMarketOrder(FIXClient, CreateNewOrder(ClientOrderId));
-
-        }
-
-        [Test]
-        public void ShouldRejectOnlyOnce()
-        {
-            SharedTest.ShouldRejectOnlyOnce(FIXClient, CreateNewOrder(ClientOrderId));
-
-        }
-
-        [Test]
-        public void OrderMonkey()
-        {
-            SharedTest.OrderMonkey(FIXClient, 12000m, "BTCUSD");
-
         }
     }
 
@@ -185,6 +176,8 @@ namespace Lykke.Service.FixGateway.Tests.Spot.TradeSessionIntegration
             Assert.That(ex.ExecType.Obj, Is.EqualTo(ExecType.CANCELED));
 
         }
+
+
 
         public static void OrderMonkey(FixClient fixClient, decimal basePrice, string assetId)
         {
