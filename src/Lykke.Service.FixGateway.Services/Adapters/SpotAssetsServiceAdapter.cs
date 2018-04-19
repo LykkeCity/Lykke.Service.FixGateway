@@ -24,8 +24,13 @@ namespace Lykke.Service.FixGateway.Services.Adapters
 
         public async Task<IReadOnlyCollection<AssetPair>> GetAllAssetPairsAsync(CancellationToken cancellationToken = default)
         {
-            var spotAssets = (await _serviceWithCache.GetAllAssetPairsAsync(cancellationToken)).Where(a => !a.IsDisabled).ToArray();
-            var result = _mapper.Map<IReadOnlyCollection<AssetPair>>(spotAssets);
+            var assets = (await _serviceWithCache.GetAllAssetsAsync(false, cancellationToken)).Where(a => !a.IsDisabled).Select(a => a.Id).ToHashSet();
+
+            var assetPairs = (await _serviceWithCache.GetAllAssetPairsAsync(cancellationToken))
+                .Where(a => !a.IsDisabled && assets.Contains(a.BaseAssetId) && assets.Contains(a.QuotingAssetId)).ToArray();
+
+
+            var result = _mapper.Map<IReadOnlyCollection<AssetPair>>(assetPairs);
             return result;
         }
 

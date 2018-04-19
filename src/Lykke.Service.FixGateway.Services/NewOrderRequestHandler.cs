@@ -97,7 +97,7 @@ namespace Lykke.Service.FixGateway.Services
             catch (Exception ex)
             {
                 var errorCode = Guid.NewGuid();
-                _log.WriteWarning(nameof(HandleRequestAsync), "", $"NewOrederRequest. Id: {newOrderId}. NewOrderSingle.ClOrdID: {request.ClOrdID}. Error code: {errorCode}", ex);
+                _log.WriteWarning(nameof(HandleRequestAsync), "", $"NewOrderRequest. Id: {newOrderId}. NewOrderSingle.ClOrdID: {request.ClOrdID}. Error code: {errorCode}", ex);
                 var reject = new Reject().CreateReject(request, errorCode);
                 Send(reject);
             }
