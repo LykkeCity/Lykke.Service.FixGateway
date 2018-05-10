@@ -2,6 +2,7 @@
 using AutoMapper;
 using Lykke.MarginTrading.Client.AutorestClient.Models;
 using Lykke.MatchingEngine.Connector.Abstractions.Models;
+using Lykke.MatchingEngine.Connector.Models;
 using Lykke.Service.FixGateway.Core.Domain;
 using Lykke.Service.FixGateway.Services.DTO.MatchingEngine;
 using QuickFix.Fields;

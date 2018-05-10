@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Lykke.MatchingEngine.Connector.Models;
 
 namespace Lykke.Service.FixGateway.Services.DTO.MatchingEngine
 {

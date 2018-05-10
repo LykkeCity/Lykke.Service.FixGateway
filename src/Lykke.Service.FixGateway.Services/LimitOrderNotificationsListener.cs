@@ -6,6 +6,7 @@ using Autofac;
 using AutoMapper;
 using Common.Log;
 using JetBrains.Annotations;
+using Lykke.MatchingEngine.Connector.Models;
 using Lykke.Service.FixGateway.Core.Services;
 using Lykke.Service.FixGateway.Core.Settings.ServiceSettings;
 using Lykke.Service.FixGateway.Services.DTO.MatchingEngine;
@@ -13,7 +14,6 @@ using QuickFix.Fields;
 using QuickFix.FIX44;
 using ILog = Common.Log.ILog;
 using Message = QuickFix.Message;
-using OrderStatus = Lykke.Service.FixGateway.Services.DTO.MatchingEngine.OrderStatus;
 
 namespace Lykke.Service.FixGateway.Services
 {
