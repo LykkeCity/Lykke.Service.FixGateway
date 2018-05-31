@@ -1,5 +1,4 @@
-﻿using Autofac;
-using Common;
+﻿using Common;
 using QuickFix;
 
 namespace Lykke.Service.FixGateway.Core.Services

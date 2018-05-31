@@ -41,7 +41,7 @@ namespace Lykke.Service.FixGateway.Modules
             builder.RegisterType<SpotAssetsServiceAdapter>()
                 .As<Core.Services.IAssetsService>();
 
-            
+
             builder.RegisterType<SpotStartupManager>()
                 .As<IStartupManager>()
                 .SingleInstance();

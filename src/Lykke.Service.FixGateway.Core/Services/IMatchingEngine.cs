@@ -1,4 +1,4 @@
-﻿using Lykke.Service.Assets.Client.Models;
+﻿using Lykke.Service.FixGateway.Core.Domain;
 
 namespace Lykke.Service.FixGateway.Core.Services
 {

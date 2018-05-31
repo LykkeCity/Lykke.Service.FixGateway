@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Autofac;
 
 namespace Lykke.Service.FixGateway.Core.Services
 {
